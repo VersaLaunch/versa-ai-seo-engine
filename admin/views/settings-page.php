@@ -96,6 +96,16 @@ if ( ! defined( 'ABSPATH' ) ) {
                 </tr>
 
                 <tr>
+                    <th scope="row"><?php esc_html_e( 'Require Apply After AI Edits', 'versa-ai-seo-engine' ); ?></th>
+                    <td>
+                        <label>
+                            <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[require_apply_after_edits]" type="checkbox" value="1" <?php checked( ! empty( $profile['require_apply_after_edits'] ), true ); ?> />
+                            <?php esc_html_e( 'Store AI changes for review; apply or discard them manually in the Tasks screen.', 'versa-ai-seo-engine' ); ?>
+                        </label>
+                    </td>
+                </tr>
+
+                <tr>
                     <th scope="row"><?php esc_html_e( 'Enable Debug Logging', 'versa-ai-seo-engine' ); ?></th>
                     <td>
                         <label>

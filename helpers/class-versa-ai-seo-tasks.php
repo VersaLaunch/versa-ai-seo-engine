@@ -81,6 +81,23 @@ class Versa_AI_SEO_Tasks {
     }
 
     /**
+     * Fetch a single task by ID.
+     */
+    public static function get_task( int $task_id ): ?array {
+        if ( $task_id <= 0 ) {
+            return null;
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'versa_ai_seo_tasks';
+
+        $query = $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $task_id );
+        $row   = $wpdb->get_row( $query, ARRAY_A );
+
+        return $row ?: null;
+    }
+
+    /**
      * Update task status and result.
      */
     public static function update_task( int $task_id, string $status, array $result = [] ): void {

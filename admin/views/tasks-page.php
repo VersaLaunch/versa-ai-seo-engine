@@ -115,4 +115,46 @@ if ( ! defined( 'ABSPATH' ) ) {
             </tbody>
         </table>
     <?php endif; ?>
+
+        <h2><?php esc_html_e( 'Awaiting Apply', 'versa-ai-seo-engine' ); ?></h2>
+        <?php if ( empty( $awaiting_apply ) ) : ?>
+            <p><?php esc_html_e( 'No tasks are awaiting apply.', 'versa-ai-seo-engine' ); ?></p>
+        <?php else : ?>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e( 'ID', 'versa-ai-seo-engine' ); ?></th>
+                        <th><?php esc_html_e( 'Post', 'versa-ai-seo-engine' ); ?></th>
+                        <th><?php esc_html_e( 'Type', 'versa-ai-seo-engine' ); ?></th>
+                        <th><?php esc_html_e( 'Details', 'versa-ai-seo-engine' ); ?></th>
+                        <th><?php esc_html_e( 'Actions', 'versa-ai-seo-engine' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $awaiting_apply as $task ) :
+                        $apply_url   = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_apply_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_apply_' . (int) $task['id'] );
+                        $discard_url = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_discard_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_discard_' . (int) $task['id'] );
+                        $post_link   = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
+                        $result      = json_decode( $task['result'] ?? '', true ) ?: [];
+                        ?>
+                        <tr>
+                            <td><?php echo esc_html( $task['id'] ); ?></td>
+                            <td>
+                                <?php if ( $task['post_id'] && $post_link ) : ?>
+                                    <a href="<?php echo esc_url( $post_link ); ?>">#<?php echo esc_html( $task['post_id'] ); ?></a>
+                                <?php else : ?>
+                                    <?php esc_html_e( 'Site-wide', 'versa-ai-seo-engine' ); ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo esc_html( $task['task_type'] ); ?></td>
+                            <td><code style="white-space:pre-wrap;"><?php echo esc_html( $task['result'] ); ?></code></td>
+                            <td>
+                                <a class="button button-primary" href="<?php echo esc_url( $apply_url ); ?>"><?php esc_html_e( 'Apply', 'versa-ai-seo-engine' ); ?></a>
+                                <a class="button" href="<?php echo esc_url( $discard_url ); ?>"><?php esc_html_e( 'Discard', 'versa-ai-seo-engine' ); ?></a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
 </div>

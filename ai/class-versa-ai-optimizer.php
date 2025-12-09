@@ -73,9 +73,11 @@ class Versa_AI_Optimizer {
             // Mark running.
             Versa_AI_SEO_Tasks::update_task( $task_id, 'running', [] );
 
-            $result = $this->process_task( $task, $profile );
+            $apply_now = empty( $profile['require_apply_after_edits'] );
+            $result    = $this->process_task( $task, $profile, $apply_now );
             if ( $result['success'] ) {
-                Versa_AI_SEO_Tasks::update_task( $task_id, 'done', $result['details'] );
+                $status = $apply_now || 'site_audit' === $task['task_type'] ? 'done' : 'awaiting_apply';
+                Versa_AI_SEO_Tasks::update_task( $task_id, $status, $result['details'] );
             } else {
                 Versa_AI_SEO_Tasks::update_task( $task_id, 'failed', $result['details'] );
             }
@@ -164,7 +166,7 @@ class Versa_AI_Optimizer {
     /**
      * Process a single task using OpenAI.
      */
-    private function process_task( array $task, array $profile ): array {
+    private function process_task( array $task, array $profile, bool $apply_now ): array {
         $post_id   = (int) $task['post_id'];
         $task_type = $task['task_type'];
         $payload   = json_decode( $task['payload'] ?? '', true ) ?: [];
@@ -174,14 +176,14 @@ class Versa_AI_Optimizer {
 
         switch ( $task_type ) {
             case 'expand_content':
-                return $this->handle_expand_content( $post_id, $title, $content, $profile );
+                return $this->handle_expand_content( $post_id, $title, $content, $profile, $apply_now );
             case 'write_snippet':
-                return $this->handle_write_snippet( $post_id, $title, $content, $profile );
+                return $this->handle_write_snippet( $post_id, $title, $content, $profile, $apply_now );
             case 'internal_linking':
                 $service_urls = $payload['service_urls'] ?? Versa_AI_Service_URLs::get_urls();
-                return $this->handle_internal_linking( $post_id, $title, $content, $profile, $service_urls );
+                return $this->handle_internal_linking( $post_id, $title, $content, $profile, $service_urls, $apply_now );
             case 'faq_schema':
-                return $this->handle_faq_schema( $post_id, $content, $profile );
+                return $this->handle_faq_schema( $post_id, $content, $profile, $apply_now );
             case 'site_audit':
                 // Site-wide tasks are informational; do not auto-apply. Mark done after approval.
                 return [ 'success' => true, 'details' => $payload ?: [ 'message' => 'Site audit suggestion' ] ];
@@ -265,7 +267,7 @@ class Versa_AI_Optimizer {
     /**
      * Expand content task.
      */
-    private function handle_expand_content( int $post_id, string $title, string $content, array $profile ): array {
+    private function handle_expand_content( int $post_id, string $title, string $content, array $profile, bool $apply_now ): array {
         $prompt = [];
         $prompt[] = 'Improve and expand the following post HTML to be more in-depth and SEO-optimized.';
         $prompt[] = 'Business name: ' . $profile['business_name'];
@@ -296,16 +298,20 @@ class Versa_AI_Optimizer {
             return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
         }
 
-        $this->backup_content( $post_id, $content );
-        wp_update_post( [ 'ID' => $post_id, 'post_content' => $parsed['content_html'] ] );
+        if ( $apply_now ) {
+            $this->backup_content( $post_id, $content );
+            wp_update_post( [ 'ID' => $post_id, 'post_content' => $parsed['content_html'] ] );
 
-        return [ 'success' => true, 'details' => [ 'message' => 'Content expanded.' ] ];
+            return [ 'success' => true, 'details' => [ 'message' => 'Content expanded.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Content ready to apply.', 'content_html' => $parsed['content_html'] ] ];
     }
 
     /**
      * Write snippet task.
      */
-    private function handle_write_snippet( int $post_id, string $title, string $content, array $profile ): array {
+    private function handle_write_snippet( int $post_id, string $title, string $content, array $profile, bool $apply_now ): array {
         $prompt = [];
         $prompt[] = 'Write SEO title and meta description for the post below.';
         $prompt[] = 'Business name: ' . $profile['business_name'];
@@ -331,22 +337,26 @@ class Versa_AI_Optimizer {
             return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
         }
 
-        if ( ! empty( $data['seo_title'] ) ) {
-            update_post_meta( $post_id, 'rank_math_title', wp_strip_all_tags( $data['seo_title'] ) );
-            update_post_meta( $post_id, '_yoast_wpseo_title', wp_strip_all_tags( $data['seo_title'] ) );
-        }
-        if ( ! empty( $data['seo_description'] ) ) {
-            update_post_meta( $post_id, 'rank_math_description', wp_strip_all_tags( $data['seo_description'] ) );
-            update_post_meta( $post_id, '_yoast_wpseo_metadesc', wp_strip_all_tags( $data['seo_description'] ) );
+        if ( $apply_now ) {
+            if ( ! empty( $data['seo_title'] ) ) {
+                update_post_meta( $post_id, 'rank_math_title', wp_strip_all_tags( $data['seo_title'] ) );
+                update_post_meta( $post_id, '_yoast_wpseo_title', wp_strip_all_tags( $data['seo_title'] ) );
+            }
+            if ( ! empty( $data['seo_description'] ) ) {
+                update_post_meta( $post_id, 'rank_math_description', wp_strip_all_tags( $data['seo_description'] ) );
+                update_post_meta( $post_id, '_yoast_wpseo_metadesc', wp_strip_all_tags( $data['seo_description'] ) );
+            }
+
+            return [ 'success' => true, 'details' => [ 'message' => 'SEO snippet updated.' ] ];
         }
 
-        return [ 'success' => true, 'details' => [ 'message' => 'SEO snippet updated.' ] ];
+        return [ 'success' => true, 'details' => [ 'message' => 'SEO snippet ready to apply.', 'seo_title' => $data['seo_title'], 'seo_description' => $data['seo_description'] ] ];
     }
 
     /**
      * Internal linking task.
      */
-    private function handle_internal_linking( int $post_id, string $title, string $content, array $profile, array $service_urls ): array {
+    private function handle_internal_linking( int $post_id, string $title, string $content, array $profile, array $service_urls, bool $apply_now ): array {
         $prompt = [];
         $prompt[] = 'Add a few natural internal links to the provided service URLs inside the HTML content.';
         $prompt[] = 'Do not change meaning or add new sections.';
@@ -375,16 +385,20 @@ class Versa_AI_Optimizer {
             return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
         }
 
-        $this->backup_content( $post_id, $content );
-        wp_update_post( [ 'ID' => $post_id, 'post_content' => $parsed['content_html'] ] );
+        if ( $apply_now ) {
+            $this->backup_content( $post_id, $content );
+            wp_update_post( [ 'ID' => $post_id, 'post_content' => $parsed['content_html'] ] );
 
-        return [ 'success' => true, 'details' => [ 'message' => 'Internal links added.' ] ];
+            return [ 'success' => true, 'details' => [ 'message' => 'Internal links added.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Internal links ready to apply.', 'content_html' => $parsed['content_html'] ] ];
     }
 
     /**
      * FAQ schema task.
      */
-    private function handle_faq_schema( int $post_id, string $content, array $profile ): array {
+    private function handle_faq_schema( int $post_id, string $content, array $profile, bool $apply_now ): array {
         $faq_section = $this->extract_faq_section( $content );
         if ( ! $faq_section ) {
             return [ 'success' => false, 'details' => [ 'message' => 'FAQ section not found.' ] ];
@@ -410,9 +424,13 @@ class Versa_AI_Optimizer {
             return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
         }
 
-        update_post_meta( $post_id, 'versa_ai_faq_schema', wp_json_encode( $data['faq_schema_json'] ) );
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_faq_schema', wp_json_encode( $data['faq_schema_json'] ) );
 
-        return [ 'success' => true, 'details' => [ 'message' => 'FAQ schema updated.' ] ];
+            return [ 'success' => true, 'details' => [ 'message' => 'FAQ schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'FAQ schema ready to apply.', 'faq_schema_json' => $data['faq_schema_json'] ] ];
     }
 
     /**
@@ -572,6 +590,7 @@ class Versa_AI_Optimizer {
             'posts_per_week'      => 0,
             'max_words_per_post'  => 1300,
             'auto_publish_posts'  => false,
+            'require_apply_after_edits' => false,
             'openai_api_key'      => '',
             'openai_model'        => 'gpt-4.1-mini',
         ];
