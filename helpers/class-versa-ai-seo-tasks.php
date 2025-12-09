@@ -118,4 +118,38 @@ class Versa_AI_SEO_Tasks {
             [ '%d' ]
         );
     }
+
+    /**
+     * Bulk update task status (and optional result) by IDs.
+     *
+     * @param array<int> $task_ids List of task IDs.
+     */
+    public static function bulk_update_tasks( array $task_ids, string $status, array $result = [] ): void {
+        $task_ids = array_values( array_filter( array_map( 'intval', $task_ids ) ) );
+        if ( empty( $task_ids ) ) {
+            return;
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'versa_ai_seo_tasks';
+
+        $placeholders = implode( ',', array_fill( 0, count( $task_ids ), '%d' ) );
+        $result_json  = $result ? wp_json_encode( $result ) : null;
+
+        $params = array_merge(
+            [
+                sanitize_text_field( $status ),
+                $result_json,
+                current_time( 'mysql' ),
+            ],
+            $task_ids
+        );
+
+        $query = $wpdb->prepare(
+            "UPDATE {$table} SET status = %s, result = %s, updated_at = %s WHERE id IN ($placeholders)",
+            ...$params
+        );
+
+        $wpdb->query( $query );
+    }
 }

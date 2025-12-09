@@ -38,6 +38,8 @@ class Versa_AI_OpenAI_Client {
             $body['max_tokens'] = $max_tokens;
         }
 
+        $timeout  = (int) apply_filters( 'versa_ai_openai_timeout', 60 );
+
         $response = wp_remote_post(
             self::API_BASE,
             [
@@ -45,23 +47,26 @@ class Versa_AI_OpenAI_Client {
                     'Authorization' => 'Bearer ' . $api_key,
                     'Content-Type'  => 'application/json',
                 ],
-                'timeout' => 60,
+                'timeout' => max( 20, $timeout ),
                 'body'    => wp_json_encode( $body ),
             ]
         );
 
         if ( is_wp_error( $response ) ) {
+            Versa_AI_Logger::log( 'openai', 'HTTP error: ' . $response->get_error_message() );
             return [ 'success' => false, 'data' => null, 'error' => $response->get_error_message() ];
         }
 
         $code = wp_remote_retrieve_response_code( $response );
         $raw  = wp_remote_retrieve_body( $response );
         if ( $code < 200 || $code >= 300 ) {
+            Versa_AI_Logger::log( 'openai', 'HTTP ' . $code . ' ' . $raw );
             return [ 'success' => false, 'data' => null, 'error' => 'HTTP ' . $code . ' ' . $raw ];
         }
 
         $decoded = json_decode( $raw, true );
         if ( ! is_array( $decoded ) || empty( $decoded['choices'][0]['message']['content'] ) ) {
+            Versa_AI_Logger::log( 'openai', 'Unexpected response: ' . substr( $raw, 0, 500 ) );
             return [ 'success' => false, 'data' => null, 'error' => 'Unexpected OpenAI response.' ];
         }
 

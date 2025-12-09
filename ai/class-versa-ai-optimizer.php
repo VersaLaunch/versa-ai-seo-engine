@@ -401,8 +401,9 @@ class Versa_AI_Optimizer {
 
     private function parse_content_json( array $openai_response ): ?array {
         $content = $openai_response['choices'][0]['message']['content'] ?? '';
-        $decoded = json_decode( trim( $content ), true );
+        $decoded = $this->decode_json_content( $content );
         if ( ! is_array( $decoded ) || empty( $decoded['content_html'] ) ) {
+            Versa_AI_Logger::log( 'optimizer', 'Invalid JSON for content_html: ' . substr( $content, 0, 500 ) );
             return null;
         }
         return [ 'content_html' => $decoded['content_html'] ];
@@ -410,8 +411,9 @@ class Versa_AI_Optimizer {
 
     private function parse_snippet_json( array $openai_response ): ?array {
         $content = $openai_response['choices'][0]['message']['content'] ?? '';
-        $decoded = json_decode( trim( $content ), true );
+        $decoded = $this->decode_json_content( $content );
         if ( ! is_array( $decoded ) ) {
+            Versa_AI_Logger::log( 'optimizer', 'Invalid JSON for snippet: ' . substr( $content, 0, 500 ) );
             return null;
         }
         return [
@@ -422,11 +424,42 @@ class Versa_AI_Optimizer {
 
     private function parse_faq_schema_json( array $openai_response ): ?array {
         $content = $openai_response['choices'][0]['message']['content'] ?? '';
-        $decoded = json_decode( trim( $content ), true );
+        $decoded = $this->decode_json_content( $content );
         if ( ! is_array( $decoded ) || ! isset( $decoded['faq_schema_json'] ) ) {
+            Versa_AI_Logger::log( 'optimizer', 'Invalid JSON for faq_schema: ' . substr( $content, 0, 500 ) );
             return null;
         }
         return [ 'faq_schema_json' => $decoded['faq_schema_json'] ];
+    }
+
+    /**
+     * Try to extract JSON from the model response, handling code fences or leading text.
+     */
+    private function decode_json_content( string $content ): ?array {
+        $trimmed = trim( $content );
+
+        $decoded = json_decode( $trimmed, true );
+        if ( is_array( $decoded ) ) {
+            return $decoded;
+        }
+
+        // Extract JSON inside ```json ``` code fences if present.
+        if ( preg_match( '/```(?:json)?\s*(\{.*?\})\s*```/s', $trimmed, $matches ) ) {
+            $decoded = json_decode( trim( $matches[1] ), true );
+            if ( is_array( $decoded ) ) {
+                return $decoded;
+            }
+        }
+
+        // Fallback: grab first JSON-looking object in the string.
+        if ( preg_match( '/(\{.*\})/s', $trimmed, $matches ) ) {
+            $decoded = json_decode( trim( $matches[1] ), true );
+            if ( is_array( $decoded ) ) {
+                return $decoded;
+            }
+        }
+
+        return null;
     }
 
     private function parse_site_tasks_json( array $openai_response ): array {
