@@ -17,14 +17,19 @@ class Versa_AI_Settings_Page {
      * Register hooks.
      */
     public function __construct() {
-        add_action( 'admin_init', [ $this, 'register_settings' ] );
+        add_action( 'admin_init', array( $this, 'register_settings' ) );
     }
 
     /**
      * Register the option and sanitization callback.
      */
     public function register_settings(): void {
-        register_setting( self::MENU_SLUG, self::OPTION_KEY, [ $this, 'sanitize_settings' ] );
+        // Simple form: option group = MENU_SLUG, option name = OPTION_KEY.
+        register_setting(
+            self::MENU_SLUG,
+            self::OPTION_KEY,
+            array( $this, 'sanitize_settings' )
+        );
     }
 
     /**
@@ -41,6 +46,7 @@ class Versa_AI_Settings_Page {
         $services_text  = implode( "\n", $profile['services'] );
         $locations_text = implode( "\n", $profile['locations'] );
 
+        // View should use $profile, $services_text, $locations_text.
         include VERSA_AI_SEO_ENGINE_PLUGIN_DIR . 'admin/views/settings-page.php';
     }
 
@@ -48,23 +54,23 @@ class Versa_AI_Settings_Page {
      * Retrieve option with defaults merged.
      */
     public function get_profile(): array {
-        $defaults = [
-            'business_name'       => '',
-            'services'            => [],
-            'locations'           => [],
-            'target_audience'     => '',
-            'tone_of_voice'       => '',
-            'posts_per_week'      => 1,
-            'max_words_per_post'  => 1300,
-            'auto_publish_posts'  => false,
+        $defaults = array(
+            'business_name'         => '',
+            'services'              => array(),
+            'locations'             => array(),
+            'target_audience'       => '',
+            'tone_of_voice'         => '',
+            'posts_per_week'        => 1,
+            'max_words_per_post'    => 1300,
+            'auto_publish_posts'    => false,
             'require_task_approval' => false,
-            'openai_api_key'      => '',
-            'openai_model'        => 'gpt-4.1-mini',
-        ];
+            'openai_api_key'        => '',
+            'openai_model'          => 'gpt-4.1-mini',
+        );
 
-        $stored = get_option( self::OPTION_KEY, [] );
+        $stored = get_option( self::OPTION_KEY, array() );
         if ( ! is_array( $stored ) ) {
-            $stored = [];
+            $stored = array();
         }
 
         return wp_parse_args( $stored, $defaults );
@@ -74,10 +80,10 @@ class Versa_AI_Settings_Page {
      * Sanitize settings before saving.
      */
     public function sanitize_settings( $input ): array {
-        $input = is_array( $input ) ? $input : [];
+        $input = is_array( $input ) ? $input : array();
 
-        $services  = $this->split_lines( $input['services'] ?? '' );
-        $locations = $this->split_lines( $input['locations'] ?? '' );
+        $services  = $this->split_lines( isset( $input['services'] ) ? $input['services'] : '' );
+        $locations = $this->split_lines( isset( $input['locations'] ) ? $input['locations'] : '' );
 
         $posts_per_week = isset( $input['posts_per_week'] ) ? (int) $input['posts_per_week'] : 0;
         $posts_per_week = max( 0, min( 7, $posts_per_week ) );
@@ -85,19 +91,19 @@ class Versa_AI_Settings_Page {
         $max_words = isset( $input['max_words_per_post'] ) ? (int) $input['max_words_per_post'] : 1300;
         $max_words = max( 300, min( 5000, $max_words ) );
 
-        return [
-            'business_name'       => sanitize_text_field( $input['business_name'] ?? '' ),
-            'services'            => $services,
-            'locations'           => $locations,
-            'target_audience'     => sanitize_text_field( $input['target_audience'] ?? '' ),
-            'tone_of_voice'       => sanitize_textarea_field( $input['tone_of_voice'] ?? '' ),
-            'posts_per_week'      => $posts_per_week,
-            'max_words_per_post'  => $max_words,
-            'auto_publish_posts'  => ! empty( $input['auto_publish_posts'] ),
+        return array(
+            'business_name'         => sanitize_text_field( isset( $input['business_name'] ) ? $input['business_name'] : '' ),
+            'services'              => $services,
+            'locations'             => $locations,
+            'target_audience'       => sanitize_text_field( isset( $input['target_audience'] ) ? $input['target_audience'] : '' ),
+            'tone_of_voice'         => sanitize_textarea_field( isset( $input['tone_of_voice'] ) ? $input['tone_of_voice'] : '' ),
+            'posts_per_week'        => $posts_per_week,
+            'max_words_per_post'    => $max_words,
+            'auto_publish_posts'    => ! empty( $input['auto_publish_posts'] ),
             'require_task_approval' => ! empty( $input['require_task_approval'] ),
-            'openai_api_key'      => sanitize_text_field( $input['openai_api_key'] ?? '' ),
-            'openai_model'        => sanitize_text_field( $input['openai_model'] ?? 'gpt-4.1-mini' ),
-        };
+            'openai_api_key'        => sanitize_text_field( isset( $input['openai_api_key'] ) ? $input['openai_api_key'] : '' ),
+            'openai_model'          => sanitize_text_field( isset( $input['openai_model'] ) ? $input['openai_model'] : 'gpt-4.1-mini' ),
+        );
     }
 
     /**
@@ -105,7 +111,9 @@ class Versa_AI_Settings_Page {
      */
     private function split_lines( string $text ): array {
         $lines = preg_split( '/[\r\n]+/', $text );
-        $lines = is_array( $lines ) ? $lines : [];
+        if ( ! is_array( $lines ) ) {
+            $lines = array();
+        }
 
         $trimmed = array_filter( array_map( 'trim', $lines ) );
         return array_values( $trimmed );
