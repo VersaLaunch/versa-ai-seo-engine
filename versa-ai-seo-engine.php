@@ -71,6 +71,7 @@ if ( ! class_exists( 'Versa_AI_SEO_Engine' ) ) {
             if ( is_admin() ) {
                 require_once VERSA_AI_SEO_ENGINE_PLUGIN_DIR . 'admin/class-versa-ai-admin-menu.php';
                 require_once VERSA_AI_SEO_ENGINE_PLUGIN_DIR . 'admin/class-versa-ai-tasks-page.php';
+                require_once VERSA_AI_SEO_ENGINE_PLUGIN_DIR . 'admin/class-versa-ai-debug-page.php';
             }
         }
 
@@ -83,7 +84,8 @@ if ( ! class_exists( 'Versa_AI_SEO_Engine' ) ) {
             if ( is_admin() ) {
                 $settings_page = new Versa_AI_Settings_Page();
                 $tasks_page    = new Versa_AI_Tasks_Page();
-                $this->admin_menu = new Versa_AI_Admin_Menu( $settings_page, $tasks_page );
+                $debug_page    = new Versa_AI_Debug_Page();
+                $this->admin_menu = new Versa_AI_Admin_Menu( $settings_page, $tasks_page, $debug_page );
             }
         }
     }

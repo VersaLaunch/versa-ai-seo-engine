@@ -64,6 +64,7 @@ class Versa_AI_Settings_Page {
             'max_words_per_post'    => 1300,
             'auto_publish_posts'    => false,
             'require_task_approval' => false,
+            'enable_debug_logging'  => false,
             'openai_api_key'        => '',
             'openai_model'          => 'gpt-4.1-mini',
         );
@@ -111,6 +112,7 @@ class Versa_AI_Settings_Page {
             'max_words_per_post'    => $max_words,
             'auto_publish_posts'    => ! empty( $input['auto_publish_posts'] ),
             'require_task_approval' => ! empty( $input['require_task_approval'] ),
+            'enable_debug_logging'  => ! empty( $input['enable_debug_logging'] ),
             'openai_api_key'        => sanitize_text_field( $new_api_key ),
             'openai_model'          => sanitize_text_field( isset( $input['openai_model'] ) ? $input['openai_model'] : 'gpt-4.1-mini' ),
         );

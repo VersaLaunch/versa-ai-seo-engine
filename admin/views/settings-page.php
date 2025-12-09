@@ -96,6 +96,16 @@ if ( ! defined( 'ABSPATH' ) ) {
                 </tr>
 
                 <tr>
+                    <th scope="row"><?php esc_html_e( 'Enable Debug Logging', 'versa-ai-seo-engine' ); ?></th>
+                    <td>
+                        <label>
+                            <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[enable_debug_logging]" type="checkbox" value="1" <?php checked( ! empty( $profile['enable_debug_logging'] ), true ); ?> />
+                            <?php esc_html_e( 'Capture plugin events in the Versa AI log table for troubleshooting.', 'versa-ai-seo-engine' ); ?>
+                        </label>
+                    </td>
+                </tr>
+
+                <tr>
                     <th scope="row"><label for="versa_ai_openai_api_key"><?php esc_html_e( 'OpenAI API Key', 'versa-ai-seo-engine' ); ?></label></th>
                     <td>
                         <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[openai_api_key]" id="versa_ai_openai_api_key" type="password" class="regular-text" value="" autocomplete="new-password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" />
