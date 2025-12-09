@@ -63,10 +63,11 @@ class Versa_AI_SEO_Tasks {
 
         if ( is_array( $status ) ) {
             $placeholders = implode( ',', array_fill( 0, count( $status ), '%s' ) );
+            $params       = array_map( 'sanitize_text_field', $status );
+            $params[]     = $limit;
             $query        = $wpdb->prepare(
                 "SELECT * FROM {$table} WHERE status IN ($placeholders) ORDER BY created_at DESC LIMIT %d",
-                ...$status,
-                $limit
+                ...$params
             );
         } else {
             $query = $wpdb->prepare(
