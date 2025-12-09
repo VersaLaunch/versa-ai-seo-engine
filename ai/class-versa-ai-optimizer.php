@@ -125,11 +125,26 @@ class Versa_AI_Optimizer {
         $initial_status   = $require_approval ? 'awaiting_approval' : 'pending';
 
         if ( $snapshot['word_count'] > 0 && $snapshot['word_count'] < 700 ) {
-            Versa_AI_SEO_Tasks::insert_task( $post_id, 'expand_content', [], $initial_status );
+            Versa_AI_SEO_Tasks::insert_task(
+                $post_id,
+                'expand_content',
+                [
+                    'reason'      => 'Low word count',
+                    'word_count'  => $snapshot['word_count'],
+                    'target_min'  => 900,
+                    'target_max'  => (int) $this->get_profile()['max_words_per_post'],
+                ],
+                $initial_status
+            );
         }
 
         if ( ! $snapshot['has_meta_description'] ) {
-            Versa_AI_SEO_Tasks::insert_task( $post_id, 'write_snippet', [], $initial_status );
+            Versa_AI_SEO_Tasks::insert_task(
+                $post_id,
+                'write_snippet',
+                [ 'reason' => 'Missing meta description' ],
+                $initial_status
+            );
         }
 
         if ( empty( $snapshot['internal_links_to_services'] ) && ! empty( $service_urls ) ) {
@@ -137,7 +152,12 @@ class Versa_AI_Optimizer {
         }
 
         if ( $snapshot['has_faq_section'] && ! $snapshot['has_faq_schema'] ) {
-            Versa_AI_SEO_Tasks::insert_task( $post_id, 'faq_schema', [], $initial_status );
+            Versa_AI_SEO_Tasks::insert_task(
+                $post_id,
+                'faq_schema',
+                [ 'reason' => 'FAQ section present but missing schema' ],
+                $initial_status
+            );
         }
     }
 
