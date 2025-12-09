@@ -98,8 +98,8 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <tr>
                     <th scope="row"><label for="versa_ai_openai_api_key"><?php esc_html_e( 'OpenAI API Key', 'versa-ai-seo-engine' ); ?></label></th>
                     <td>
-                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[openai_api_key]" id="versa_ai_openai_api_key" type="text" class="regular-text" value="<?php echo esc_attr( $profile['openai_api_key'] ); ?>" autocomplete="off" />
-                        <p class="description"><?php esc_html_e( 'Stored in your WordPress database. Required for AI features.', 'versa-ai-seo-engine' ); ?></p>
+                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[openai_api_key]" id="versa_ai_openai_api_key" type="password" class="regular-text" value="" autocomplete="new-password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" />
+                        <p class="description"><?php esc_html_e( 'Enter a new key to replace. Leave blank to keep the existing key. Stored in your WordPress database.', 'versa-ai-seo-engine' ); ?></p>
                     </td>
                 </tr>
 

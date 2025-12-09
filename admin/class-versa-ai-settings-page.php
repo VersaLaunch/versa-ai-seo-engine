@@ -82,6 +82,11 @@ class Versa_AI_Settings_Page {
     public function sanitize_settings( $input ): array {
         $input = is_array( $input ) ? $input : array();
 
+        $stored_option = get_option( self::OPTION_KEY, array() );
+        if ( ! is_array( $stored_option ) ) {
+            $stored_option = array();
+        }
+
         $services  = $this->split_lines( $input['services'] ?? '' );
         $locations = $this->split_lines( $input['locations'] ?? '' );
 
@@ -90,6 +95,11 @@ class Versa_AI_Settings_Page {
 
         $max_words = isset( $input['max_words_per_post'] ) ? (int) $input['max_words_per_post'] : 1300;
         $max_words = max( 300, min( 5000, $max_words ) );
+
+        $new_api_key = isset( $input['openai_api_key'] ) ? trim( $input['openai_api_key'] ) : '';
+        if ( '' === $new_api_key && isset( $stored_option['openai_api_key'] ) ) {
+            $new_api_key = $stored_option['openai_api_key']; // keep existing if left blank.
+        }
 
         return array(
             'business_name'         => sanitize_text_field( isset( $input['business_name'] ) ? $input['business_name'] : '' ),
@@ -101,7 +111,7 @@ class Versa_AI_Settings_Page {
             'max_words_per_post'    => $max_words,
             'auto_publish_posts'    => ! empty( $input['auto_publish_posts'] ),
             'require_task_approval' => ! empty( $input['require_task_approval'] ),
-            'openai_api_key'        => sanitize_text_field( isset( $input['openai_api_key'] ) ? $input['openai_api_key'] : '' ),
+            'openai_api_key'        => sanitize_text_field( $new_api_key ),
             'openai_model'          => sanitize_text_field( isset( $input['openai_model'] ) ? $input['openai_model'] : 'gpt-4.1-mini' ),
         );
     }
