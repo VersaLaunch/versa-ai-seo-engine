@@ -14,63 +14,42 @@ if ( ! defined( 'ABSPATH' ) ) {
     <h1><?php esc_html_e( 'Versa AI Tasks', 'versa-ai-seo-engine' ); ?></h1>
 
     <?php if ( ! empty( $cron_actions ) ) : ?>
-        <h2><?php esc_html_e( 'Recent Activity', 'versa-ai-seo-engine' ); ?></h2>
-        <?php if ( empty( $recent ) ) : ?>
-            <p><?php esc_html_e( 'No recent tasks.', 'versa-ai-seo-engine' ); ?></p>
-        <?php else : ?>
+        <h2><?php esc_html_e( 'Run Now', 'versa-ai-seo-engine' ); ?></h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+            <?php foreach ( $cron_actions as $hook => $label ) : ?>
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+                    <input type="hidden" name="action" value="versa_ai_run_cron" />
+                    <input type="hidden" name="cron_hook" value="<?php echo esc_attr( $hook ); ?>" />
+                    <?php wp_nonce_field( 'versa_ai_run_cron' ); ?>
+                    <button type="submit" class="button"><?php echo esc_html( $label ); ?></button>
+                </form>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+    <h2><?php esc_html_e( 'Awaiting Approval', 'versa-ai-seo-engine' ); ?></h2>
+    <?php if ( empty( $awaiting ) ) : ?>
+        <p><?php esc_html_e( 'No tasks are awaiting approval.', 'versa-ai-seo-engine' ); ?></p>
+    <?php else : ?>
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+            <input type="hidden" name="action" value="versa_ai_bulk_tasks" />
+            <?php wp_nonce_field( 'versa_ai_bulk_tasks' ); ?>
+
+            <div style="margin: 0 0 12px;">
+                <label for="versa_ai_bulk_action" class="screen-reader-text"><?php esc_html_e( 'Bulk action', 'versa-ai-seo-engine' ); ?></label>
+                <select name="bulk_action" id="versa_ai_bulk_action">
+                    <option value="">— <?php esc_html_e( 'Bulk actions', 'versa-ai-seo-engine' ); ?> —</option>
+                    <option value="approve"><?php esc_html_e( 'Approve selected', 'versa-ai-seo-engine' ); ?></option>
+                    <option value="decline"><?php esc_html_e( 'Decline selected', 'versa-ai-seo-engine' ); ?></option>
+                </select>
+                <button type="submit" class="button action"><?php esc_html_e( 'Apply', 'versa-ai-seo-engine' ); ?></button>
+            </div>
+
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
+                        <td class="manage-column column-cb check-column"><input type="checkbox" id="versa_ai_tasks_select_all" /></td>
                         <th><?php esc_html_e( 'ID', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Post', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Type', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Status', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Details', 'versa-ai-seo-engine' ); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $recent as $task ) :
-                        $post_link = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
-                        $slug      = $task['post_id'] ? get_post_field( 'post_name', (int) $task['post_id'] ) : '';
-                        $result    = json_decode( $task['result'] ?? '', true );
-                        $message   = '';
-                        if ( is_array( $result ) ) {
-                            $message = $result['message'] ?? '';
-                        }
-                        ?>
-                        <tr>
-                            <td><?php echo esc_html( $task['id'] ); ?></td>
-                            <td>
-                                <?php if ( $task['post_id'] && $post_link ) : ?>
-                                    <a href="<?php echo esc_url( $post_link ); ?>">#<?php echo esc_html( $task['post_id'] ); ?></a><?php if ( $slug ) : ?> (<?php echo esc_html( $slug ); ?>)<?php endif; ?>
-                                <?php else : ?>
-                                    <?php esc_html_e( 'Site-wide', 'versa-ai-seo-engine' ); ?>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo esc_html( $task['task_type'] ); ?></td>
-                            <td>
-                                <span class="versai-status versai-status-<?php echo esc_attr( $task['status'] ); ?>"><?php echo esc_html( $task['status'] ); ?></span>
-                            </td>
-                            <td>
-                                <?php if ( $message ) : ?>
-                                    <div><?php echo esc_html( $message ); ?></div>
-                                <?php endif; ?>
-                                <?php if ( is_array( $result ) ) : ?>
-                                    <details style="margin-top:4px;">
-                                        <summary><?php esc_html_e( 'View raw', 'versa-ai-seo-engine' ); ?></summary>
-                                        <code style="white-space:pre-wrap; display:block; margin-top:4px;">
-                                            <?php echo esc_html( wp_json_encode( $result ) ); ?>
-                                        </code>
-                                    </details>
-                                <?php else : ?>
-                                    <code style="white-space:pre-wrap; display:block;">&nbsp;<?php echo esc_html( $task['result'] ); ?></code>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
                         <th><?php esc_html_e( 'Post', 'versa-ai-seo-engine' ); ?></th>
                         <th><?php esc_html_e( 'Type', 'versa-ai-seo-engine' ); ?></th>
                         <th><?php esc_html_e( 'Payload', 'versa-ai-seo-engine' ); ?></th>
