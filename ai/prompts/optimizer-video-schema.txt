@@ -1,0 +1,4 @@
+Generate VideoObject JSON-LD.
+Return JSON ONLY with key video_schema_json (object). No prose, no Markdown.
+Title: {{title}}
+Video URL: {{video_url}}

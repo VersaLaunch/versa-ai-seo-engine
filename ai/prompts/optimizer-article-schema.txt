@@ -1,0 +1,10 @@
+Generate Article/BlogPosting JSON-LD.
+Use the provided fields; infer missing values conservatively.
+Return JSON ONLY with key article_schema_json (object). No prose, no Markdown.
+Fields:
+- title: {{title}}
+- description: {{description}}
+- author: {{author_name}}
+- url: {{url}}
+- datePublished: {{date_pub}}
+- dateModified: {{date_mod}}

@@ -1,0 +1,5 @@
+Generate HowTo JSON-LD for the steps below.
+Return JSON ONLY with key howto_schema_json (object). No prose, no Markdown.
+Title: {{title}}
+Steps HTML:
+{{steps_html}}

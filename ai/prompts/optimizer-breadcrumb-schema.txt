@@ -1,0 +1,4 @@
+Generate BreadcrumbList JSON-LD.
+Return JSON ONLY with key breadcrumb_schema_json (object). No prose, no Markdown.
+Trail entries (label|url), one per line:
+{{trail}}

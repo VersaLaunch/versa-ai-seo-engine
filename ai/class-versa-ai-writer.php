@@ -155,42 +155,46 @@ class Versa_AI_Writer {
             'image_count'      => $image_count,
         };
 
-        return Versa_AI_Prompts::render( 'writer', $context, function () use ( $profile, $queue_item, $outline, $recent_titles, $include_images, $image_count ) {
-            $lines   = [];
-            $lines[] = 'Write a full HTML blog post.';
-            $lines[] = 'Business name: ' . $profile['business_name'];
-            $lines[] = 'Services: ' . implode( ', ', $profile['services'] );
-            $lines[] = 'Locations: ' . implode( ', ', $profile['locations'] );
-            $lines[] = 'Target audience: ' . $profile['target_audience'];
-            $lines[] = 'Tone: ' . $profile['tone_of_voice'];
-            $lines[] = 'Primary keyword: ' . $queue_item['target_keyword'];
-            $lines[] = 'Topic (title): ' . $queue_item['post_title'];
-            if ( $outline ) {
-                $lines[] = 'Outline to follow: ' . implode( ' | ', $outline );
-            }
-            $lines[] = 'Structure: one H1 matching the title; clear intro; 3-5 body sections with H2/H3 hierarchy; concise CTA near the end; FAQ section with 3-5 Q&A.';
-            $lines[] = 'Depth: satisfy search intent and compete with top results; aim roughly 900 to ' . (int) $profile['max_words_per_post'] . ' words when warranted, but prefer clarity and completeness over padding. Include concrete examples, stats, or mini checklists where helpful.';
-            $lines[] = 'Style: second-person POV, active voice, short sentences (<22 words), scannable paragraphs and bullet lists.';
-            $lines[] = 'Links: include 2-5 natural internal links to relevant service or location pages only when contextually justified; never invent URLs; keep anchors descriptive; do not add external links unless already present.';
-            $lines[] = 'Headings/HTML: use clean HTML (<h2>/<h3>, <p>, <ul>/<ol>, <strong>, <em>); no inline styles; no Markdown.';
-            $lines[] = 'FAQ: keep answers concise and factual; avoid medical/legal/financial promises.';
+        return Versa_AI_Prompts::render(
+            'writer',
+            $context,
+            function () use ( $profile, $queue_item, $outline, $recent_titles, $include_images, $image_count ) {
+                $lines = array();
+                $lines[] = 'Write a full HTML blog post.';
+                $lines[] = 'Business name: ' . $profile['business_name'];
+                $lines[] = 'Services: ' . implode( ', ', $profile['services'] );
+                $lines[] = 'Locations: ' . implode( ', ', $profile['locations'] );
+                $lines[] = 'Target audience: ' . $profile['target_audience'];
+                $lines[] = 'Tone: ' . $profile['tone_of_voice'];
+                $lines[] = 'Primary keyword: ' . $queue_item['target_keyword'];
+                $lines[] = 'Topic (title): ' . $queue_item['post_title'];
+                if ( $outline ) {
+                    $lines[] = 'Outline to follow: ' . implode( ' | ', $outline );
+                }
+                $lines[] = 'Structure: one H1 matching the title; clear intro; 3-5 body sections with H2/H3 hierarchy; concise CTA near the end; FAQ section with 3-5 Q&A.';
+                $lines[] = 'Depth: satisfy search intent and compete with top results; aim roughly 900 to ' . (int) $profile['max_words_per_post'] . ' words when warranted, but prefer clarity and completeness over padding. Include concrete examples, stats, or mini checklists where helpful.';
+                $lines[] = 'Style: second-person POV, active voice, short sentences (<22 words), scannable paragraphs and bullet lists.';
+                $lines[] = 'Links: include 2-5 natural internal links to relevant service or location pages only when contextually justified; never invent URLs; keep anchors descriptive; do not add external links unless already present.';
+                $lines[] = 'Headings/HTML: use clean HTML (<h2>/<h3>, <p>, <ul>/<ol>, <strong>, <em>); no inline styles; no Markdown.';
+                $lines[] = 'FAQ: keep answers concise and factual; avoid medical/legal/financial promises.';
 
-            if ( $recent_titles ) {
-                $lines[] = 'Avoid repeating or rephrasing these recent posts; deliver a fresh angle: ' . implode( '; ', $recent_titles );
-                $lines[] = 'Use new examples, stats, and subtopics so the article is original, not a rewrite of existing site content.';
-            }
+                if ( $recent_titles ) {
+                    $lines[] = 'Avoid repeating or rephrasing these recent posts; deliver a fresh angle: ' . implode( '; ', $recent_titles );
+                    $lines[] = 'Use new examples, stats, and subtopics so the article is original, not a rewrite of existing site content.';
+                }
 
-            if ( $include_images && $image_count > 0 ) {
-                $lines[] = 'Insert ' . $image_count . ' relevant illustrative images using <figure><img ...><figcaption> where helpful.';
-                $lines[] = 'Each <img> must include meaningful alt text describing the image; do not use base64.';
-                $lines[] = 'Use royalty-free external URLs (e.g., Unsplash) and keep them lean; no data URIs.';
-                $lines[] = 'Keep images responsive (no fixed width/height) and avoid decorative filler images.';
-            }
+                if ( $include_images && $image_count > 0 ) {
+                    $lines[] = 'Insert ' . $image_count . ' relevant illustrative images using <figure><img ...><figcaption> where helpful.';
+                    $lines[] = 'Each <img> must include meaningful alt text describing the image; do not use base64.';
+                    $lines[] = 'Use royalty-free external URLs (e.g., Unsplash) and keep them lean; no data URIs.';
+                    $lines[] = 'Keep images responsive (no fixed width/height) and avoid decorative filler images.';
+                }
 
-            $lines[] = 'Compliance: do not include prices, legal claims, certifications, or guarantees you cannot prove.';
-            $lines[] = 'Return strict JSON ONLY with keys: content_html, seo_title, seo_description, faq_schema_json (object). Never return Markdown.';
-            return implode( "\n", $lines );
-        } );
+                $lines[] = 'Compliance: do not include prices, legal claims, certifications, or guarantees you cannot prove.';
+                $lines[] = 'Return strict JSON ONLY with keys: content_html, seo_title, seo_description, faq_schema_json (object). Never return Markdown.';
+                return implode( "\n", $lines );
+            }
+        );
     }
 
     /**

@@ -1,0 +1,6 @@
+Generate Organization (or LocalBusiness if appropriate) JSON-LD.
+Return JSON ONLY with key org_schema_json (object). No prose, no Markdown.
+Name: {{name}}
+URL: {{url}}
+Logo: {{logo}}
+Description: {{description}}

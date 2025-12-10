@@ -45,6 +45,7 @@ class Versa_AI_Optimizer {
             Versa_AI_SEO_Snapshot::save( $post_id, $snapshot );
 
             $this->maybe_create_tasks( $post_id, $snapshot, $service_urls );
+            $this->maybe_create_schema_tasks( $post_id, $post, $snapshot );
         }
 
         // Also run a lightweight site crawl to draft site-wide recommendations.
@@ -180,6 +181,49 @@ class Versa_AI_Optimizer {
     }
 
     /**
+     * Create schema-related tasks based on detected gaps.
+     */
+    private function maybe_create_schema_tasks( int $post_id, WP_Post $post, array $snapshot ): void {
+        $profile = $this->get_profile();
+        $require_approval = (bool) ( $profile['require_task_approval'] ?? false );
+        $initial_status   = $require_approval ? 'awaiting_approval' : 'pending';
+
+        $content = $post->post_content;
+        $title   = get_the_title( $post_id );
+
+        // Article schema for posts/pages missing Article/BlogPosting JSON-LD.
+        if ( $this->should_add_article_schema( $post, $content ) && ! $this->has_open_task( $post_id, 'article_schema' ) ) {
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'article_schema', [ 'title' => $title ], $initial_status );
+        }
+
+        // BreadcrumbList for content with ancestors and no breadcrumb schema.
+        if ( $this->should_add_breadcrumb_schema( $post_id, $content ) && ! $this->has_open_task( $post_id, 'breadcrumb_schema' ) ) {
+            $trail = $this->get_breadcrumb_trail( $post_id );
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'breadcrumb_schema', [ 'trail' => $trail ], $initial_status );
+        }
+
+        // HowTo when steps detected and missing schema.
+        if ( $this->should_add_howto_schema( $post, $content ) && ! $this->has_open_task( $post_id, 'howto_schema' ) ) {
+            $steps_html = $this->extract_step_list_html( $content );
+            if ( $steps_html ) {
+                Versa_AI_SEO_Tasks::insert_task( $post_id, 'howto_schema', [ 'steps_html' => $steps_html, 'title' => $title ], $initial_status );
+            }
+        }
+
+        // VideoObject when embedded video detected and missing schema.
+        $video = $this->detect_video_embed( $content );
+        if ( $video && ! $this->content_has_schema_type( $content, 'VideoObject' ) && ! $this->has_open_task( $post_id, 'video_schema' ) ) {
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'video_schema', $video + [ 'title' => $title ], $initial_status );
+        }
+
+        // Organization/LocalBusiness schema for front page only.
+        $front_page_id = (int) get_option( 'page_on_front' );
+        if ( $front_page_id > 0 && $post_id === $front_page_id && ! $this->content_has_schema_type( $content, 'Organization' ) && ! $this->content_has_schema_type( $content, 'LocalBusiness' ) && ! $this->has_open_task( $post_id, 'org_schema' ) ) {
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'org_schema', [], $initial_status );
+        }
+    }
+
+    /**
      * Process a single task using OpenAI.
      */
     private function process_task( array $task, array $profile, bool $apply_now ): array {
@@ -200,6 +244,16 @@ class Versa_AI_Optimizer {
                 return $this->handle_internal_linking( $post_id, $title, $content, $profile, $service_urls, $apply_now );
             case 'faq_schema':
                 return $this->handle_faq_schema( $post_id, $content, $profile, $apply_now );
+            case 'article_schema':
+                return $this->handle_article_schema( $post_id, $content, $profile, $apply_now );
+            case 'breadcrumb_schema':
+                return $this->handle_breadcrumb_schema( $post_id, $content, $profile, $apply_now );
+            case 'howto_schema':
+                return $this->handle_howto_schema( $post_id, $content, $profile, $apply_now );
+            case 'video_schema':
+                return $this->handle_video_schema( $post_id, $content, $profile, $payload, $apply_now );
+            case 'org_schema':
+                return $this->handle_org_schema( $post_id, $profile, $apply_now );
             case 'site_audit':
                 // Site-wide tasks are informational; do not auto-apply. Mark done after approval.
                 return [ 'success' => true, 'details' => $payload ?: [ 'message' => 'Site audit suggestion' ] ];
@@ -575,6 +629,244 @@ class Versa_AI_Optimizer {
     }
 
     /**
+     * Article schema task.
+     */
+    private function handle_article_schema( int $post_id, string $content, array $profile, bool $apply_now ): array {
+        $title        = get_the_title( $post_id );
+        $description  = $this->extract_meta_description( $post_id, $content );
+        $author_name  = get_the_author_meta( 'display_name', (int) get_post_field( 'post_author', $post_id ) ) ?: $profile['business_name'];
+        $url          = get_permalink( $post_id );
+        $date_pub     = get_the_date( DATE_ATOM, $post_id );
+        $date_mod     = get_post_modified_time( DATE_ATOM, false, $post_id );
+
+        $prompt_lines   = [];
+        $prompt_lines[] = 'Generate Article/BlogPosting JSON-LD.';
+        $prompt_lines[] = 'Return JSON ONLY with key article_schema_json (object).';
+        $prompt_lines[] = 'Fields:';
+        $prompt_lines[] = 'title: ' . $title;
+        $prompt_lines[] = 'description: ' . $description;
+        $prompt_lines[] = 'author: ' . $author_name;
+        $prompt_lines[] = 'url: ' . $url;
+        $prompt_lines[] = 'datePublished: ' . $date_pub;
+        $prompt_lines[] = 'dateModified: ' . $date_mod;
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-article-schema', [
+            'title'        => $title,
+            'description'  => $description,
+            'author_name'  => $author_name,
+            'url'          => $url,
+            'date_pub'     => $date_pub,
+            'date_mod'     => $date_mod,
+        ], function () use ( $prompt_lines ) {
+            return implode( "\n", $prompt_lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.2 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'article_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_article_schema', wp_json_encode( $data['article_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'Article schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Article schema ready to apply.', 'article_schema_json' => $data['article_schema_json'] ] ];
+    }
+
+    /**
+     * Breadcrumb schema task.
+     */
+    private function handle_breadcrumb_schema( int $post_id, string $content, array $profile, bool $apply_now ): array {
+        $trail = $this->get_breadcrumb_trail( $post_id );
+        if ( empty( $trail ) ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'No breadcrumb trail available.' ] ];
+        }
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-breadcrumb-schema', [
+            'trail' => implode( "\n", array_map( fn( $item ) => $item['label'] . '|' . $item['url'], $trail ) ),
+        ], function () use ( $trail ) {
+            $lines = [];
+            $lines[] = 'Generate BreadcrumbList JSON-LD. Return JSON ONLY with key breadcrumb_schema_json (object).';
+            $lines[] = 'Trail (label|url):';
+            foreach ( $trail as $item ) {
+                $lines[] = $item['label'] . ' | ' . $item['url'];
+            }
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.15 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'breadcrumb_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_breadcrumb_schema', wp_json_encode( $data['breadcrumb_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'Breadcrumb schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Breadcrumb schema ready to apply.', 'breadcrumb_schema_json' => $data['breadcrumb_schema_json'] ] ];
+    }
+
+    /**
+     * HowTo schema task.
+     */
+    private function handle_howto_schema( int $post_id, string $content, array $profile, bool $apply_now ): array {
+        $title = get_the_title( $post_id );
+        $steps_html = $this->extract_step_list_html( $content );
+        if ( ! $steps_html ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Steps not found.' ] ];
+        }
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-howto-schema', [
+            'title' => $title,
+            'steps_html' => $steps_html,
+        ], function () use ( $title, $steps_html ) {
+            $lines   = [];
+            $lines[] = 'Generate HowTo JSON-LD for the steps below. Return JSON ONLY with key howto_schema_json (object).';
+            $lines[] = 'Title: ' . $title;
+            $lines[] = 'Steps HTML:';
+            $lines[] = $steps_html;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.2 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'howto_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_howto_schema', wp_json_encode( $data['howto_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'HowTo schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'HowTo schema ready to apply.', 'howto_schema_json' => $data['howto_schema_json'] ] ];
+    }
+
+    /**
+     * Video schema task.
+     */
+    private function handle_video_schema( int $post_id, string $content, array $profile, array $payload, bool $apply_now ): array {
+        $title = $payload['title'] ?? get_the_title( $post_id );
+        $video_url = $payload['video_url'] ?? '';
+        if ( ! $video_url ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Video URL missing.' ] ];
+        }
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-video-schema', [
+            'title'     => $title,
+            'video_url' => $video_url,
+        ], function () use ( $title, $video_url ) {
+            $lines   = [];
+            $lines[] = 'Generate VideoObject JSON-LD.';
+            $lines[] = 'Return JSON ONLY with key video_schema_json (object).';
+            $lines[] = 'Title: ' . $title;
+            $lines[] = 'Video URL: ' . $video_url;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.15 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'video_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_video_schema', wp_json_encode( $data['video_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'Video schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Video schema ready to apply.', 'video_schema_json' => $data['video_schema_json'] ] ];
+    }
+
+    /**
+     * Organization schema task (front page only).
+     */
+    private function handle_org_schema( int $post_id, array $profile, bool $apply_now ): array {
+        $site_name = get_bloginfo( 'name' );
+        $site_url  = home_url( '/' );
+        $logo      = function_exists( 'get_site_icon_url' ) ? get_site_icon_url() : '';
+        $description = get_bloginfo( 'description' );
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-org-schema', [
+            'name'        => $site_name,
+            'url'         => $site_url,
+            'logo'        => $logo,
+            'description' => $description,
+        ], function () use ( $site_name, $site_url, $logo, $description ) {
+            $lines   = [];
+            $lines[] = 'Generate Organization (or LocalBusiness if appropriate) JSON-LD.';
+            $lines[] = 'Return JSON ONLY with key org_schema_json (object).';
+            $lines[] = 'Name: ' . $site_name;
+            $lines[] = 'URL: ' . $site_url;
+            $lines[] = 'Logo: ' . $logo;
+            $lines[] = 'Description: ' . $description;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.15 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'org_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_org_schema', wp_json_encode( $data['org_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'Organization schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Organization schema ready to apply.', 'org_schema_json' => $data['org_schema_json'] ] ];
+    }
+
+    /**
      * Helpers
      */
 
@@ -611,6 +903,16 @@ class Versa_AI_Optimizer {
         return [ 'faq_schema_json' => $decoded['faq_schema_json'] ];
     }
 
+    private function parse_schema_json( array $openai_response, string $key ): ?array {
+        $content = $openai_response['choices'][0]['message']['content'] ?? '';
+        $decoded = $this->decode_json_content( $content );
+        if ( ! is_array( $decoded ) || ! isset( $decoded[ $key ] ) ) {
+            Versa_AI_Logger::log( 'optimizer', 'Invalid JSON for ' . $key . ': ' . substr( $content, 0, 500 ) );
+            return null;
+        }
+        return [ $key => $decoded[ $key ] ];
+    }
+
     /**
      * Try to extract JSON from the model response, handling code fences or leading text.
      */
@@ -639,6 +941,105 @@ class Versa_AI_Optimizer {
         }
 
         return null;
+    }
+
+    private function content_has_schema_type( string $content, string $type ): bool {
+        $needle = 'schema.org/' . $type;
+        return false !== stripos( $content, $needle );
+    }
+
+    private function should_add_article_schema( WP_Post $post, string $content ): bool {
+        $post_type = get_post_type( $post );
+        $supported = in_array( $post_type, [ 'post', 'page' ], true );
+        if ( ! $supported ) {
+            return false;
+        }
+        if ( $this->content_has_schema_type( $content, 'Article' ) || $this->content_has_schema_type( $content, 'BlogPosting' ) ) {
+            return false;
+        }
+        return true;
+    }
+
+    private function should_add_breadcrumb_schema( int $post_id, string $content ): bool {
+        if ( $this->content_has_schema_type( $content, 'BreadcrumbList' ) ) {
+            return false;
+        }
+        $ancestors = get_post_ancestors( $post_id );
+        return ! empty( $ancestors );
+    }
+
+    private function get_breadcrumb_trail( int $post_id ): array {
+        $ancestors = array_reverse( get_post_ancestors( $post_id ) );
+        $trail = [];
+        foreach ( $ancestors as $ancestor_id ) {
+            $trail[] = [
+                'label' => get_the_title( $ancestor_id ),
+                'url'   => get_permalink( $ancestor_id ),
+            ];
+        }
+        $trail[] = [
+            'label' => get_the_title( $post_id ),
+            'url'   => get_permalink( $post_id ),
+        ];
+        return array_values( array_filter( $trail, fn( $item ) => ! empty( $item['label'] ) && ! empty( $item['url'] ) ) );
+    }
+
+    private function should_add_howto_schema( WP_Post $post, string $content ): bool {
+        $title = get_the_title( $post );
+        $is_howto_title = stripos( $title, 'how to' ) !== false;
+        $has_steps       = false !== stripos( $content, '<ol' ) || false !== stripos( $content, '<ul' );
+
+        if ( $this->content_has_schema_type( $content, 'HowTo' ) ) {
+            return false;
+        }
+
+        return ( $is_howto_title || $has_steps ) && (bool) $this->extract_step_list_html( $content );
+    }
+
+    private function extract_step_list_html( string $content ): ?string {
+        // Grab the first ordered or unordered list as steps if present.
+        if ( preg_match( '/<(ol|ul)[^>]*>(.*?)<\/\1>/is', $content, $matches ) ) {
+            return $matches[0];
+        }
+        return null;
+    }
+
+    private function detect_video_embed( string $content ): ?array {
+        if ( preg_match( '/<iframe[^>]+src="([^"]+)"[^>]*>.*?<\/iframe>/is', $content, $matches ) ) {
+            return [ 'video_url' => $matches[1] ];
+        }
+        if ( preg_match( '/<video[^>]+src="([^"]+)"/is', $content, $matches ) ) {
+            return [ 'video_url' => $matches[1] ];
+        }
+        return null;
+    }
+
+    private function extract_meta_description( int $post_id, string $content ): string {
+        $seo_desc = get_post_meta( $post_id, 'rank_math_description', true );
+        if ( ! $seo_desc ) {
+            $seo_desc = get_post_meta( $post_id, '_yoast_wpseo_metadesc', true );
+        }
+        if ( $seo_desc ) {
+            return wp_strip_all_tags( $seo_desc );
+        }
+
+        $excerpt = wp_trim_words( wp_strip_all_tags( $content ), 40, '' );
+        return $excerpt;
+    }
+
+    private function has_open_task( int $post_id, string $task_type ): bool {
+        global $wpdb;
+        $table = $wpdb->prefix . 'versa_ai_seo_tasks';
+        $statuses = [ 'pending', 'awaiting_approval', 'running', 'awaiting_apply' ];
+        $placeholders = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE post_id = %d AND task_type = %s AND status IN ($placeholders)",
+            ...array_merge( [ $post_id, $task_type ], $statuses )
+        );
+
+        $count = (int) $wpdb->get_var( $query );
+        return $count > 0;
     }
 
     private function parse_site_tasks_json( array $openai_response ): array {
