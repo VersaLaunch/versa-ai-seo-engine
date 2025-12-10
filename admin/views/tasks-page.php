@@ -62,6 +62,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                         $decline_url = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_decline_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_action_' . (int) $task['id'] );
                         $post_link   = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
                         $slug        = $task['post_id'] ? get_post_field( 'post_name', (int) $task['post_id'] ) : '';
+                        $payload_decoded = json_decode( $task['payload'] ?? '', true );
                         ?>
                         <tr>
                             <th scope="row" class="check-column"><input type="checkbox" name="task_ids[]" value="<?php echo esc_attr( $task['id'] ); ?>" /></th>
@@ -74,7 +75,26 @@ if ( ! defined( 'ABSPATH' ) ) {
                                 <?php endif; ?>
                             </td>
                             <td><?php echo esc_html( $task['task_type'] ); ?></td>
-                            <td><code style="white-space:pre-wrap;"><?php echo esc_html( $task['payload'] ); ?></code></td>
+                            <td>
+                                <?php if ( is_array( $payload_decoded ) && ! empty( $payload_decoded['summary'] ) ) : ?>
+                                    <div><strong><?php esc_html_e( 'Summary:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload_decoded['summary'] ); ?></div>
+                                    <?php if ( ! empty( $payload_decoded['warnings'] ) && is_array( $payload_decoded['warnings'] ) ) : ?>
+                                        <div><strong><?php esc_html_e( 'Warnings:', 'versa-ai-seo-engine' ); ?></strong>
+                                            <ul style="margin:4px 0 0 18px; list-style:disc;">
+                                                <?php foreach ( $payload_decoded['warnings'] as $warn ) : ?>
+                                                    <li><?php echo esc_html( $warn ); ?></li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    <?php endif; ?>
+                                    <details style="margin-top:6px;">
+                                        <summary><?php esc_html_e( 'Raw payload', 'versa-ai-seo-engine' ); ?></summary>
+                                        <code style="white-space:pre-wrap; display:block; margin-top:4px;"><?php echo esc_html( $task['payload'] ); ?></code>
+                                    </details>
+                                <?php else : ?>
+                                    <code style="white-space:pre-wrap;"><?php echo esc_html( $task['payload'] ); ?></code>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <a class="button button-primary" href="<?php echo esc_url( $approve_url ); ?>"><?php esc_html_e( 'Approve', 'versa-ai-seo-engine' ); ?></a>
                                 <a class="button" href="<?php echo esc_url( $decline_url ); ?>"><?php esc_html_e( 'Decline', 'versa-ai-seo-engine' ); ?></a>
@@ -112,8 +132,9 @@ if ( ! defined( 'ABSPATH' ) ) {
             </thead>
             <tbody>
                 <?php foreach ( $recent as $task ) :
-                    $post_link = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
-                    $slug      = $task['post_id'] ? get_post_field( 'post_name', (int) $task['post_id'] ) : '';
+                    $post_link     = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
+                    $slug          = $task['post_id'] ? get_post_field( 'post_name', (int) $task['post_id'] ) : '';
+                    $result_decoded = json_decode( $task['result'] ?? '', true );
                     ?>
                     <tr>
                         <td><?php echo esc_html( $task['id'] ); ?></td>
@@ -126,7 +147,26 @@ if ( ! defined( 'ABSPATH' ) ) {
                         </td>
                         <td><?php echo esc_html( $task['task_type'] ); ?></td>
                         <td><?php echo esc_html( $task['status'] ); ?></td>
-                        <td><code style="white-space:pre-wrap;"><?php echo esc_html( $task['result'] ); ?></code></td>
+                        <td>
+                            <?php if ( is_array( $result_decoded ) && ! empty( $result_decoded['summary'] ) ) : ?>
+                                <div><strong><?php esc_html_e( 'Summary:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $result_decoded['summary'] ); ?></div>
+                                <?php if ( ! empty( $result_decoded['warnings'] ) && is_array( $result_decoded['warnings'] ) ) : ?>
+                                    <div><strong><?php esc_html_e( 'Warnings:', 'versa-ai-seo-engine' ); ?></strong>
+                                        <ul style="margin:4px 0 0 18px; list-style:disc;">
+                                            <?php foreach ( $result_decoded['warnings'] as $warn ) : ?>
+                                                <li><?php echo esc_html( $warn ); ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                <?php endif; ?>
+                                <details style="margin-top:6px;">
+                                    <summary><?php esc_html_e( 'Raw result', 'versa-ai-seo-engine' ); ?></summary>
+                                    <code style="white-space:pre-wrap; display:block; margin-top:4px;"><?php echo esc_html( $task['result'] ); ?></code>
+                                </details>
+                            <?php else : ?>
+                                <code style="white-space:pre-wrap;"><?php echo esc_html( $task['result'] ); ?></code>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
