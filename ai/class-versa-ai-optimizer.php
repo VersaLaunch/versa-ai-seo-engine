@@ -216,10 +216,38 @@ class Versa_AI_Optimizer {
             Versa_AI_SEO_Tasks::insert_task( $post_id, 'video_schema', $video + [ 'title' => $title ], $initial_status );
         }
 
-        // Organization/LocalBusiness schema for front page only.
+        // Product schema when product-like signals found.
+        if ( $this->should_add_product_schema( $post, $content ) && ! $this->has_open_task( $post_id, 'product_schema' ) ) {
+            $product_payload = $this->extract_product_signals( $content, $title );
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'product_schema', $product_payload, $initial_status );
+        }
+
+        // Service schema when service-like page detected.
+        if ( $this->should_add_service_schema( $post, $content, $profile ) && ! $this->has_open_task( $post_id, 'service_schema' ) ) {
+            $service_payload = [ 'title' => $title, 'description' => wp_trim_words( wp_strip_all_tags( $content ), 60, '' ) ];
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'service_schema', $service_payload, $initial_status );
+        }
+
+        // Event schema when event signals found.
+        if ( $this->should_add_event_schema( $post, $content ) && ! $this->has_open_task( $post_id, 'event_schema' ) ) {
+            $event_payload = $this->extract_event_signals( $content, $title );
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'event_schema', $event_payload, $initial_status );
+        }
+
+        // WebSite + SearchAction for front page when missing.
         $front_page_id = (int) get_option( 'page_on_front' );
-        if ( $front_page_id > 0 && $post_id === $front_page_id && ! $this->content_has_schema_type( $content, 'Organization' ) && ! $this->content_has_schema_type( $content, 'LocalBusiness' ) && ! $this->has_open_task( $post_id, 'org_schema' ) ) {
-            Versa_AI_SEO_Tasks::insert_task( $post_id, 'org_schema', [], $initial_status );
+        if ( $front_page_id > 0 && $post_id === $front_page_id && ! $this->content_has_schema_type( $content, 'WebSite' ) && ! $this->has_open_task( $post_id, 'website_schema' ) ) {
+            Versa_AI_SEO_Tasks::insert_task( $post_id, 'website_schema', [], $initial_status );
+        }
+
+        // Organization/LocalBusiness schema for front page only.
+        if ( $front_page_id > 0 && $post_id === $front_page_id && ! $this->content_has_schema_type( $content, 'Organization' ) && ! $this->content_has_schema_type( $content, 'LocalBusiness' ) ) {
+            if ( ! $this->has_open_task( $post_id, 'localbusiness_schema' ) ) {
+                Versa_AI_SEO_Tasks::insert_task( $post_id, 'localbusiness_schema', [], $initial_status );
+            }
+            if ( ! $this->has_open_task( $post_id, 'org_schema' ) ) {
+                Versa_AI_SEO_Tasks::insert_task( $post_id, 'org_schema', [], $initial_status );
+            }
         }
     }
 
@@ -254,9 +282,45 @@ class Versa_AI_Optimizer {
                 return $this->handle_video_schema( $post_id, $content, $profile, $payload, $apply_now );
             case 'org_schema':
                 return $this->handle_org_schema( $post_id, $profile, $apply_now );
+            case 'product_schema':
+                return $this->handle_product_schema( $post_id, $content, $profile, $payload, $apply_now );
+            case 'service_schema':
+                return $this->handle_service_schema( $post_id, $content, $profile, $payload, $apply_now );
+            case 'event_schema':
+                return $this->handle_event_schema( $post_id, $content, $profile, $payload, $apply_now );
+            case 'website_schema':
+                return $this->handle_website_schema( $post_id, $profile, $apply_now );
+            case 'localbusiness_schema':
+                return $this->handle_localbusiness_schema( $post_id, $profile, $apply_now );
             case 'site_audit':
-                // Site-wide tasks are informational; do not auto-apply. Mark done after approval.
-                return [ 'success' => true, 'details' => $payload ?: [ 'message' => 'Site audit suggestion' ] ];
+                $issue = $payload['issue'] ?? '';
+                $spawned = [];
+
+                $require_approval = (bool) ( $profile['require_task_approval'] ?? false );
+                $initial_status   = $require_approval ? 'awaiting_approval' : 'pending';
+
+                $spawn = function ( string $type, array $extra_payload = [] ) use ( $post_id, $initial_status, &$spawned ) {
+                    if ( ! $this->has_open_task( $post_id, $type ) ) {
+                        Versa_AI_SEO_Tasks::insert_task( $post_id, $type, $extra_payload, $initial_status );
+                        $spawned[] = $type;
+                    }
+                };
+
+                if ( in_array( $issue, [ 'missing_meta_description', 'missing_title' ], true ) ) {
+                    $spawn( 'write_snippet' );
+                }
+
+                if ( 'thin_content' === $issue ) {
+                    $spawn( 'expand_content', [ 'reason' => 'Site audit thin content' ] );
+                }
+
+                // Leave informational-only issues (http_error, noindex, canonical, missing_h1) as-is.
+                $details = $payload ?: [ 'message' => 'Site audit suggestion' ];
+                if ( $spawned ) {
+                    $details['spawned_tasks'] = $spawned;
+                }
+
+                return [ 'success' => true, 'details' => $details ];
             default:
                 return [ 'success' => false, 'details' => [ 'message' => 'Unknown task type.' ] ];
         }
@@ -805,6 +869,225 @@ class Versa_AI_Optimizer {
     }
 
     /**
+     * Product schema task.
+     */
+    private function handle_product_schema( int $post_id, string $content, array $profile, array $payload, bool $apply_now ): array {
+        $title        = $payload['title'] ?? get_the_title( $post_id );
+        $description  = $payload['description'] ?? wp_trim_words( wp_strip_all_tags( $content ), 80, '' );
+        $price        = $payload['price'] ?? '';
+        $currency     = $payload['currency'] ?? 'USD';
+        $sku          = $payload['sku'] ?? '';
+        $brand        = $payload['brand'] ?? ( $profile['business_name'] ?? '' );
+        $availability = $payload['availability'] ?? '';
+        $image        = $payload['image'] ?? $this->extract_first_image_src( $content );
+        $url          = get_permalink( $post_id );
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-product-schema', [
+            'title'        => $title,
+            'description'  => $description,
+            'price'        => $price,
+            'currency'     => $currency,
+            'sku'          => $sku,
+            'brand'        => $brand,
+            'availability' => $availability,
+            'image'        => $image,
+            'url'          => $url,
+        ], function () use ( $title, $description, $price, $currency, $sku, $brand, $availability, $image, $url ) {
+            $lines   = [];
+            $lines[] = 'Generate Product JSON-LD with Offer/aggregateOffer as appropriate.';
+            $lines[] = 'Return JSON ONLY with key product_schema_json (object).';
+            $lines[] = 'Title: ' . $title;
+            $lines[] = 'Description: ' . $description;
+            $lines[] = 'Price: ' . $price;
+            $lines[] = 'Currency: ' . $currency;
+            $lines[] = 'SKU: ' . $sku;
+            $lines[] = 'Brand: ' . $brand;
+            $lines[] = 'Availability: ' . $availability;
+            $lines[] = 'Image: ' . $image;
+            $lines[] = 'URL: ' . $url;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.2 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'product_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_product_schema', wp_json_encode( $data['product_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'Product schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Product schema ready to apply.', 'product_schema_json' => $data['product_schema_json'] ] ];
+    }
+
+    /**
+     * Service schema task.
+     */
+    private function handle_service_schema( int $post_id, string $content, array $profile, array $payload, bool $apply_now ): array {
+        $title       = $payload['title'] ?? get_the_title( $post_id );
+        $description = $payload['description'] ?? wp_trim_words( wp_strip_all_tags( $content ), 80, '' );
+        $area_served = implode( ', ', (array) ( $profile['locations'] ?? [] ) );
+        $provider    = $profile['business_name'] ?? '';
+        $url         = get_permalink( $post_id );
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-service-schema', [
+            'title'       => $title,
+            'description' => $description,
+            'area_served' => $area_served,
+            'provider'    => $provider,
+            'url'         => $url,
+        ], function () use ( $title, $description, $area_served, $provider, $url ) {
+            $lines   = [];
+            $lines[] = 'Generate Service JSON-LD.';
+            $lines[] = 'Return JSON ONLY with key service_schema_json (object).';
+            $lines[] = 'Name: ' . $title;
+            $lines[] = 'Description: ' . $description;
+            $lines[] = 'Area served: ' . $area_served;
+            $lines[] = 'Provider: ' . $provider;
+            $lines[] = 'URL: ' . $url;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.2 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'service_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_service_schema', wp_json_encode( $data['service_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'Service schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Service schema ready to apply.', 'service_schema_json' => $data['service_schema_json'] ] ];
+    }
+
+    /**
+     * Event schema task.
+     */
+    private function handle_event_schema( int $post_id, string $content, array $profile, array $payload, bool $apply_now ): array {
+        $title       = $payload['title'] ?? get_the_title( $post_id );
+        $description = $payload['description'] ?? wp_trim_words( wp_strip_all_tags( $content ), 80, '' );
+        $start_date  = $payload['start_date'] ?? $this->extract_date_string( $content );
+        $end_date    = $payload['end_date'] ?? '';
+        $location    = $payload['location'] ?? $this->extract_location_line( $content );
+        $is_online   = (bool) ( $payload['is_online'] ?? $this->content_mentions_online( $content ) );
+        $url         = get_permalink( $post_id );
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-event-schema', [
+            'title'       => $title,
+            'description' => $description,
+            'start_date'  => $start_date,
+            'end_date'    => $end_date,
+            'location'    => $location,
+            'is_online'   => $is_online ? 'true' : 'false',
+            'url'         => $url,
+        ], function () use ( $title, $description, $start_date, $end_date, $location, $is_online, $url ) {
+            $lines   = [];
+            $lines[] = 'Generate Event JSON-LD.';
+            $lines[] = 'Return JSON ONLY with key event_schema_json (object).';
+            $lines[] = 'Name: ' . $title;
+            $lines[] = 'Description: ' . $description;
+            $lines[] = 'Start date/time (raw text ok): ' . $start_date;
+            $lines[] = 'End date/time (optional): ' . $end_date;
+            $lines[] = 'Location: ' . $location;
+            $lines[] = 'Is online: ' . ( $is_online ? 'true' : 'false' );
+            $lines[] = 'URL: ' . $url;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.2 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'event_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_event_schema', wp_json_encode( $data['event_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'Event schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'Event schema ready to apply.', 'event_schema_json' => $data['event_schema_json'] ] ];
+    }
+
+    /**
+     * WebSite schema + SearchAction (front page only).
+     */
+    private function handle_website_schema( int $post_id, array $profile, bool $apply_now ): array {
+        $site_name   = get_bloginfo( 'name' );
+        $site_url    = home_url( '/' );
+        $description = get_bloginfo( 'description' );
+        $search_url  = home_url( '/?s={search_term_string}' );
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-website-schema', [
+            'name'        => $site_name,
+            'url'         => $site_url,
+            'description' => $description,
+            'search_url'  => $search_url,
+        ], function () use ( $site_name, $site_url, $description, $search_url ) {
+            $lines   = [];
+            $lines[] = 'Generate WebSite JSON-LD with SearchAction.';
+            $lines[] = 'Return JSON ONLY with key website_schema_json (object).';
+            $lines[] = 'Name: ' . $site_name;
+            $lines[] = 'URL: ' . $site_url;
+            $lines[] = 'Description: ' . $description;
+            $lines[] = 'Search target: ' . $search_url;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.15 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'website_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_website_schema', wp_json_encode( $data['website_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'WebSite schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'WebSite schema ready to apply.', 'website_schema_json' => $data['website_schema_json'] ] ];
+    }
+
+    /**
      * Organization schema task (front page only).
      */
     private function handle_org_schema( int $post_id, array $profile, bool $apply_now ): array {
@@ -850,6 +1133,57 @@ class Versa_AI_Optimizer {
         }
 
         return [ 'success' => true, 'details' => [ 'message' => 'Organization schema ready to apply.', 'org_schema_json' => $data['org_schema_json'] ] ];
+    }
+
+    /**
+     * LocalBusiness schema task (front page only).
+     */
+    private function handle_localbusiness_schema( int $post_id, array $profile, bool $apply_now ): array {
+        $site_name = get_bloginfo( 'name' );
+        $site_url  = home_url( '/' );
+        $logo      = function_exists( 'get_site_icon_url' ) ? get_site_icon_url() : '';
+        $description = get_bloginfo( 'description' );
+        $locations   = implode( ', ', (array) ( $profile['locations'] ?? [] ) );
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-localbusiness-schema', [
+            'name'        => $site_name,
+            'url'         => $site_url,
+            'logo'        => $logo,
+            'description' => $description,
+            'locations'   => $locations,
+        ], function () use ( $site_name, $site_url, $logo, $description, $locations ) {
+            $lines   = [];
+            $lines[] = 'Generate LocalBusiness JSON-LD (choose a subtype if clear).';
+            $lines[] = 'Return JSON ONLY with key localbusiness_schema_json (object).';
+            $lines[] = 'Name: ' . $site_name;
+            $lines[] = 'URL: ' . $site_url;
+            $lines[] = 'Logo: ' . $logo;
+            $lines[] = 'Description: ' . $description;
+            $lines[] = 'Areas served: ' . $locations;
+            return implode( "\n", $lines );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
+
+        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.15 );
+        if ( ! $resp['success'] ) {
+            return [ 'success' => false, 'details' => [ 'message' => $resp['error'] ] ];
+        }
+
+        $data = $this->parse_schema_json( $resp['data'], 'localbusiness_schema_json' );
+        if ( ! $data ) {
+            return [ 'success' => false, 'details' => [ 'message' => 'Invalid JSON response.' ] ];
+        }
+
+        if ( $apply_now ) {
+            update_post_meta( $post_id, 'versa_ai_localbusiness_schema', wp_json_encode( $data['localbusiness_schema_json'] ) );
+            return [ 'success' => true, 'details' => [ 'message' => 'LocalBusiness schema updated.' ] ];
+        }
+
+        return [ 'success' => true, 'details' => [ 'message' => 'LocalBusiness schema ready to apply.', 'localbusiness_schema_json' => $data['localbusiness_schema_json'] ] ];
     }
 
     /**
@@ -932,6 +1266,158 @@ class Versa_AI_Optimizer {
     private function content_has_schema_type( string $content, string $type ): bool {
         $needle = 'schema.org/' . $type;
         return false !== stripos( $content, $needle );
+    }
+
+    private function should_add_product_schema( WP_Post $post, string $content ): bool {
+        if ( $this->content_has_schema_type( $content, 'Product' ) || $this->content_has_schema_type( $content, 'Offer' ) ) {
+            return false;
+        }
+
+        $post_type = get_post_type( $post );
+        $supported = in_array( $post_type, [ 'post', 'page', 'product' ], true );
+        if ( ! $supported ) {
+            return false;
+        }
+
+        $has_price = (bool) preg_match( '/(\$|£|€)\s?\d{1,3}(?:[,\.\s]\d{3})*(?:[\.,]\d{2})?/', $content );
+        $has_cart  = false !== stripos( $content, 'add to cart' ) || false !== stripos( $content, 'buy now' ) || false !== stripos( $content, 'order now' );
+        $has_sku   = (bool) preg_match( '/\bSKU[:\s#]*[A-Z0-9_-]{3,}/i', $content );
+
+        return $has_price || $has_cart || $has_sku;
+    }
+
+    private function should_add_service_schema( WP_Post $post, string $content, array $profile ): bool {
+        if ( $this->content_has_schema_type( $content, 'Service' ) ) {
+            return false;
+        }
+
+        $post_type = get_post_type( $post );
+        $supported = in_array( $post_type, [ 'post', 'page' ], true );
+        if ( ! $supported ) {
+            return false;
+        }
+
+        $service_keywords = [ 'service', 'services', 'consulting', 'quote', 'pricing', 'book now', 'schedule', 'appointment' ];
+        $has_service_word = array_reduce( $service_keywords, fn( $carry, $kw ) => $carry || false !== stripos( $content, $kw ), false );
+
+        $matches_profile = false;
+        foreach ( (array) ( $profile['services'] ?? [] ) as $service_name ) {
+            if ( $service_name && false !== stripos( $content, (string) $service_name ) ) {
+                $matches_profile = true;
+                break;
+            }
+        }
+
+        return $has_service_word || $matches_profile;
+    }
+
+    private function should_add_event_schema( WP_Post $post, string $content ): bool {
+        if ( $this->content_has_schema_type( $content, 'Event' ) ) {
+            return false;
+        }
+
+        $post_type = get_post_type( $post );
+        $supported = in_array( $post_type, [ 'post', 'page' ], true );
+        if ( ! $supported ) {
+            return false;
+        }
+
+        $event_keywords = [ 'event', 'webinar', 'workshop', 'conference', 'meetup', 'summit', 'seminar' ];
+        $has_event_word = array_reduce( $event_keywords, fn( $carry, $kw ) => $carry || false !== stripos( $content, $kw ), false );
+
+        $has_date = (bool) preg_match( '/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/i', $content )
+            || (bool) preg_match( '/\b20[2-9][0-9][-\/](0?[1-9]|1[0-2])[-\/](0?[1-9]|[12][0-9]|3[01])\b/', $content );
+        $has_rsvp = (bool) preg_match( '/\b(rsvp|register|tickets?)\b/i', $content );
+
+        return $has_event_word && ( $has_date || $has_rsvp );
+    }
+
+    private function extract_product_signals( string $content, string $title ): array {
+        [ $price, $currency ] = $this->extract_price_and_currency( $content );
+
+        $sku = '';
+        if ( preg_match( '/\bSKU[:\s#]*([A-Z0-9_-]{3,})/i', $content, $m ) ) {
+            $sku = $m[1];
+        }
+
+        $availability = '';
+        if ( preg_match( '/in stock|available now/i', $content ) ) {
+            $availability = 'InStock';
+        } elseif ( preg_match( '/out of stock|backorder/i', $content ) ) {
+            $availability = 'OutOfStock';
+        }
+
+        $description = wp_trim_words( wp_strip_all_tags( $content ), 80, '' );
+
+        return [
+            'title'        => $title,
+            'description'  => $description,
+            'price'        => $price,
+            'currency'     => $currency,
+            'sku'          => $sku,
+            'brand'        => '',
+            'availability' => $availability,
+            'image'        => $this->extract_first_image_src( $content ),
+        ];
+    }
+
+    private function extract_event_signals( string $content, string $title ): array {
+        $description = wp_trim_words( wp_strip_all_tags( $content ), 80, '' );
+
+        return [
+            'title'       => $title,
+            'description' => $description,
+            'start_date'  => $this->extract_date_string( $content ),
+            'end_date'    => '',
+            'location'    => $this->extract_location_line( $content ),
+            'is_online'   => $this->content_mentions_online( $content ),
+        ];
+    }
+
+    private function extract_price_and_currency( string $content ): array {
+        if ( preg_match( '/(\$|£|€)\s?(\d{1,3}(?:[,\.\s]\d{3})*(?:[\.,]\d{2})?)/', $content, $m ) ) {
+            $symbol = $m[1];
+            $price  = str_replace( [ ',', ' ' ], '', $m[2] );
+            $currency = '$' === $symbol ? 'USD' : ( '£' === $symbol ? 'GBP' : 'EUR' );
+            return [ $price, $currency ];
+        }
+
+        if ( preg_match( '/\bUSD\s?(\d+[\.,]?\d*)\b/i', $content, $m ) ) {
+            return [ $m[1], 'USD' ];
+        }
+
+        return [ '', 'USD' ];
+    }
+
+    private function extract_first_image_src( string $content ): string {
+        if ( preg_match( '/<img[^>]+src="([^"]+)"/i', $content, $m ) ) {
+            return $m[1];
+        }
+        return '';
+    }
+
+    private function extract_date_string( string $content ): string {
+        if ( preg_match( '/\b20[2-9][0-9][-\/](0?[1-9]|1[0-2])[-\/](0?[1-9]|[12][0-9]|3[01])\b/', $content, $m ) ) {
+            return $m[0];
+        }
+        if ( preg_match( '/\b(?:Jan|January|Feb|February|Mar|March|Apr|April|May|Jun|June|Jul|July|Aug|August|Sep|September|Oct|October|Nov|November|Dec|December)\s+\d{1,2}(?:,\s*20\d{2})?/i', $content, $m ) ) {
+            return $m[0];
+        }
+        return '';
+    }
+
+    private function extract_location_line( string $content ): string {
+        if ( preg_match( '/\b(?:address|location|venue)[:\s]+([^\n\r<]+)/i', $content, $m ) ) {
+            return trim( wp_strip_all_tags( $m[1] ) );
+        }
+        if ( preg_match( '/\b(street|ave\.?|avenue|road|rd\.?|drive|blvd\.?|suite)\b[^\n\r<]{5,80}/i', $content, $m ) ) {
+            return trim( wp_strip_all_tags( $m[0] ) );
+        }
+        return '';
+    }
+
+    private function content_mentions_online( string $content ): bool {
+        return false !== stripos( $content, 'online' ) || false !== stripos( $content, 'virtual' ) || false !== stripos( $content, 'remote' );
     }
 
     private function should_add_article_schema( WP_Post $post, string $content ): bool {

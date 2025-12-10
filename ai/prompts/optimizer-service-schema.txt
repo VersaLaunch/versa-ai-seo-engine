@@ -1,0 +1,8 @@
+Generate Service JSON-LD.
+Return JSON ONLY with key service_schema_json (object).
+Name: {{title}}
+Description: {{description}}
+Area served: {{area_served}}
+Provider: {{provider}}
+URL: {{url}}
+Use Service/Organization provider when applicable. Include areaServed when present. If pricing is implied, include a simple Offer with priceCurrency and price. Keep output concise and valid JSON-LD.

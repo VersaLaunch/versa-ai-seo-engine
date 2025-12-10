@@ -1,0 +1,10 @@
+Generate Event JSON-LD.
+Return JSON ONLY with key event_schema_json (object).
+Name: {{title}}
+Description: {{description}}
+Start date/time (raw text ok): {{start_date}}
+End date/time: {{end_date}}
+Location text: {{location}}
+Is online: {{is_online}}
+URL: {{url}}
+If is_online is true, use OnlineEventAttendanceMode and a virtual location. Otherwise, use a Place with the provided location text. Normalize dates to ISO 8601 when possible. Keep JSON-LD valid.

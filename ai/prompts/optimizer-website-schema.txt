@@ -1,0 +1,7 @@
+Generate WebSite JSON-LD with SearchAction.
+Return JSON ONLY with key website_schema_json (object).
+Name: {{name}}
+URL: {{url}}
+Description: {{description}}
+Search target: {{search_url}}
+Include potentialAction SearchAction using the target with {search_term_string} placeholder and query-input of the search term string. Keep output valid JSON-LD.

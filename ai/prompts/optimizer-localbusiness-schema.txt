@@ -1,0 +1,8 @@
+Generate LocalBusiness JSON-LD (choose a subtype if clear: ProfessionalService, Store, etc.).
+Return JSON ONLY with key localbusiness_schema_json (object).
+Name: {{name}}
+URL: {{url}}
+Logo: {{logo}}
+Description: {{description}}
+Areas served: {{locations}}
+Include address/geo only if clear from context. Prefer Organization/@id based on the homepage. Keep JSON-LD valid and concise.

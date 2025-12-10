@@ -1,0 +1,12 @@
+Generate Product JSON-LD with an Offer or AggregateOffer.
+Return JSON ONLY with key product_schema_json (object).
+Name: {{title}}
+Description: {{description}}
+Price: {{price}}
+Currency: {{currency}}
+SKU: {{sku}}
+Brand: {{brand}}
+Availability: {{availability}}
+Image: {{image}}
+URL: {{url}}
+Use "NewCondition" unless condition is clearly different. Map availability to schema.org values. Include priceCurrency/price inside offers and at least one image if available.
