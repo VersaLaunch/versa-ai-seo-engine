@@ -42,6 +42,72 @@ if ( ! defined( 'ABSPATH' ) ) {
                         </tr>
 
                         <tr>
+                            <th scope="row"><label for="versa_ai_business_category"><?php esc_html_e( 'Business Category', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_category]" id="versa_ai_business_category" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_category'] ); ?>" />
+                                <p class="description"><?php esc_html_e( 'Short industry/category (e.g., Digital Marketing Agency, Plumbing Service). Used for schema subtype hints.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><?php esc_html_e( 'Business Address', 'versa-ai-seo-engine' ); ?></th>
+                            <td>
+                                <div style="display:grid; gap:8px; max-width:700px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                                    <div>
+                                        <label for="versa_ai_business_address">Street</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_address]" id="versa_ai_business_address" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_address'] ); ?>" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_business_city">City</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_city]" id="versa_ai_business_city" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_city'] ); ?>" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_business_state">State/Region</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_state]" id="versa_ai_business_state" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_state'] ); ?>" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_business_postcode">Postal Code</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_postcode]" id="versa_ai_business_postcode" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_postcode'] ); ?>" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_business_country">Country</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_country]" id="versa_ai_business_country" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_country'] ); ?>" />
+                                    </div>
+                                </div>
+                                <p class="description"><?php esc_html_e( 'Used to populate LocalBusiness schema (postalAddress).', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><?php esc_html_e( 'Business Contact & Geo', 'versa-ai-seo-engine' ); ?></th>
+                            <td>
+                                <div style="display:grid; gap:8px; max-width:700px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                                    <div>
+                                        <label for="versa_ai_business_phone">Phone</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_phone]" id="versa_ai_business_phone" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_phone'] ); ?>" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_contact_phone">Contact Phone (Support/Sales)</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[contact_phone]" id="versa_ai_contact_phone" type="text" class="regular-text" value="<?php echo esc_attr( $profile['contact_phone'] ); ?>" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_contact_type">Contact Type</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[contact_type]" id="versa_ai_contact_type" type="text" class="regular-text" value="<?php echo esc_attr( $profile['contact_type'] ); ?>" placeholder="Customer Support, Sales" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_business_lat">Latitude</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_lat]" id="versa_ai_business_lat" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_lat'] ); ?>" />
+                                    </div>
+                                    <div>
+                                        <label for="versa_ai_business_lng">Longitude</label>
+                                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[business_lng]" id="versa_ai_business_lng" type="text" class="regular-text" value="<?php echo esc_attr( $profile['business_lng'] ); ?>" />
+                                    </div>
+                                </div>
+                                <p class="description"><?php esc_html_e( 'Phone and geo are used in LocalBusiness schema for richer local results.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
                             <th scope="row"><label for="versa_ai_target_audience"><?php esc_html_e( 'Target Audience', 'versa-ai-seo-engine' ); ?></label></th>
                             <td>
                                 <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[target_audience]" id="versa_ai_target_audience" type="text" class="regular-text" value="<?php echo esc_attr( $profile['target_audience'] ); ?>" />
@@ -144,6 +210,62 @@ if ( ! defined( 'ABSPATH' ) ) {
                                     <label><input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[enable_localbusiness_schema]" type="checkbox" value="1" <?php checked( ! empty( $profile['enable_localbusiness_schema'] ), true ); ?> /> <?php esc_html_e( 'LocalBusiness (front page)', 'versa-ai-seo-engine' ); ?></label>
                                     <p class="description"><?php esc_html_e( 'Uncheck any schema types you do not want automatically created.', 'versa-ai-seo-engine' ); ?></p>
                                 </fieldset>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="versa_ai_same_as"><?php esc_html_e( 'SameAs Profiles', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <textarea name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[same_as]" id="versa_ai_same_as" rows="3" class="large-text code"><?php echo esc_textarea( implode( "\n", (array) $profile['same_as'] ) ); ?></textarea>
+                                <p class="description"><?php esc_html_e( 'One URL per line (LinkedIn, Facebook, Instagram, YouTube, Crunchbase, etc.). Used in Organization/LocalBusiness schema.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="versa_ai_opening_hours"><?php esc_html_e( 'Opening Hours', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <textarea name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[opening_hours]" id="versa_ai_opening_hours" rows="3" class="large-text code"><?php echo esc_textarea( $profile['opening_hours'] ); ?></textarea>
+                                <p class="description"><?php esc_html_e( 'Example: Mon-Fri 9:00-17:00; Sat 10:00-14:00; Closed Sun. Used to build openingHoursSpecification.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="versa_ai_price_range"><?php esc_html_e( 'Price Range', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[price_range]" id="versa_ai_price_range" type="text" class="regular-text" value="<?php echo esc_attr( $profile['price_range'] ); ?>" placeholder="$$" />
+                                <p class="description"><?php esc_html_e( 'Short price range (e.g., $, $$, $$$). Used in LocalBusiness schema.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="versa_ai_payment_methods"><?php esc_html_e( 'Payment Methods', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[payment_methods]" id="versa_ai_payment_methods" type="text" class="regular-text" value="<?php echo esc_attr( implode( ', ', (array) $profile['payment_methods'] ) ); ?>" placeholder="Visa, MasterCard, PayPal" />
+                                <p class="description"><?php esc_html_e( 'Comma or newline separated. Used in LocalBusiness offers.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="versa_ai_currencies_accepted"><?php esc_html_e( 'Currencies Accepted', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[currencies_accepted]" id="versa_ai_currencies_accepted" type="text" class="regular-text" value="<?php echo esc_attr( implode( ', ', (array) $profile['currencies_accepted'] ) ); ?>" placeholder="USD, EUR" />
+                                <p class="description"><?php esc_html_e( 'Comma or newline separated. Used in LocalBusiness offers.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="versa_ai_default_product_currency"><?php esc_html_e( 'Default Product Currency', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[default_product_currency]" id="versa_ai_default_product_currency" type="text" class="regular-text" value="<?php echo esc_attr( $profile['default_product_currency'] ); ?>" />
+                                <p class="description"><?php esc_html_e( 'Fallback currency for Product/Service schema if none detected.', 'versa-ai-seo-engine' ); ?></p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="versa_ai_default_product_availability"><?php esc_html_e( 'Default Product Availability', 'versa-ai-seo-engine' ); ?></label></th>
+                            <td>
+                                <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[default_product_availability]" id="versa_ai_default_product_availability" type="text" class="regular-text" value="<?php echo esc_attr( $profile['default_product_availability'] ); ?>" placeholder="InStock" />
+                                <p class="description"><?php esc_html_e( 'Fallback Offer availability (e.g., InStock, PreOrder, OutOfStock).', 'versa-ai-seo-engine' ); ?></p>
                             </td>
                         </tr>
 

@@ -56,6 +56,24 @@ class Versa_AI_Settings_Page {
     public function get_profile(): array {
         $defaults = array(
             'business_name'         => '',
+            'business_address'      => '',
+            'business_city'         => '',
+            'business_state'        => '',
+            'business_postcode'     => '',
+            'business_country'      => '',
+            'business_phone'        => '',
+            'business_lat'          => '',
+            'business_lng'          => '',
+            'business_category'     => '',
+            'same_as'               => array(),
+            'opening_hours'         => '',
+            'price_range'           => '',
+            'payment_methods'       => array(),
+            'currencies_accepted'   => array(),
+            'contact_type'          => '',
+            'contact_phone'         => '',
+            'default_product_currency'   => 'USD',
+            'default_product_availability' => 'InStock',
             'services'              => array(),
             'locations'             => array(),
             'target_audience'       => '',
@@ -113,6 +131,9 @@ class Versa_AI_Settings_Page {
 
         $services  = $this->split_lines( $input['services'] ?? '' );
         $locations = $this->split_lines( $input['locations'] ?? '' );
+        $same_as  = $this->split_lines( $input['same_as'] ?? '' );
+        $payment_methods = $this->split_list( $input['payment_methods'] ?? '' );
+        $currencies_accepted = $this->split_list( $input['currencies_accepted'] ?? '' );
 
         $posts_per_week = isset( $input['posts_per_week'] ) ? (int) $input['posts_per_week'] : 0;
         $posts_per_week = max( 0, min( 7, $posts_per_week ) );
@@ -157,6 +178,24 @@ class Versa_AI_Settings_Page {
 
         return array(
             'business_name'         => sanitize_text_field( isset( $input['business_name'] ) ? $input['business_name'] : '' ),
+            'business_address'      => sanitize_text_field( $input['business_address'] ?? '' ),
+            'business_city'         => sanitize_text_field( $input['business_city'] ?? '' ),
+            'business_state'        => sanitize_text_field( $input['business_state'] ?? '' ),
+            'business_postcode'     => sanitize_text_field( $input['business_postcode'] ?? '' ),
+            'business_country'      => sanitize_text_field( $input['business_country'] ?? '' ),
+            'business_phone'        => sanitize_text_field( $input['business_phone'] ?? '' ),
+            'business_lat'          => sanitize_text_field( $input['business_lat'] ?? '' ),
+            'business_lng'          => sanitize_text_field( $input['business_lng'] ?? '' ),
+            'business_category'     => sanitize_text_field( $input['business_category'] ?? '' ),
+            'same_as'               => array_map( 'esc_url_raw', $same_as ),
+            'opening_hours'         => sanitize_textarea_field( $input['opening_hours'] ?? '' ),
+            'price_range'           => sanitize_text_field( $input['price_range'] ?? '' ),
+            'payment_methods'       => $payment_methods,
+            'currencies_accepted'   => $currencies_accepted,
+            'contact_type'          => sanitize_text_field( $input['contact_type'] ?? '' ),
+            'contact_phone'         => sanitize_text_field( $input['contact_phone'] ?? '' ),
+            'default_product_currency'   => sanitize_text_field( $input['default_product_currency'] ?? 'USD' ),
+            'default_product_availability' => sanitize_text_field( $input['default_product_availability'] ?? 'InStock' ),
             'services'              => $services,
             'locations'             => $locations,
             'target_audience'       => sanitize_text_field( isset( $input['target_audience'] ) ? $input['target_audience'] : '' ),

@@ -260,20 +260,28 @@ class Versa_AI_Optimizer {
             Versa_AI_SEO_Tasks::insert_task( $post_id, 'event_schema', $event_payload, $initial_status );
         }
 
+        $has_meta_schema = function ( int $pid, string $meta_key ): bool {
+            $stored = get_post_meta( $pid, $meta_key, true );
+            return ! empty( $stored );
+        };
+
         // WebSite + SearchAction for front page when missing.
         $front_page_id = (int) get_option( 'page_on_front' );
-        if ( $schema_enabled['website'] && $front_page_id > 0 && $post_id === $front_page_id && ! $this->content_has_schema_type( $content, 'WebSite' ) && ! $this->has_open_task( $post_id, 'website_schema' ) && $can_add_schema() ) {
+        if ( $schema_enabled['website'] && $front_page_id > 0 && $post_id === $front_page_id && ! $this->content_has_schema_type( $content, 'WebSite' ) && ! $has_meta_schema( $post_id, 'versa_ai_website_schema' ) && ! $this->has_open_task( $post_id, 'website_schema' ) && $can_add_schema() ) {
             $payload = $this->with_task_summary( 'website_schema', [] );
             Versa_AI_SEO_Tasks::insert_task( $post_id, 'website_schema', $payload, $initial_status );
         }
 
         // Organization/LocalBusiness schema for front page only.
         if ( $front_page_id > 0 && $post_id === $front_page_id && ! $this->content_has_schema_type( $content, 'Organization' ) && ! $this->content_has_schema_type( $content, 'LocalBusiness' ) ) {
-            if ( $schema_enabled['localbusiness'] && ! $this->has_open_task( $post_id, 'localbusiness_schema' ) && $can_add_schema() ) {
+            $has_local_meta = $has_meta_schema( $post_id, 'versa_ai_localbusiness_schema' );
+            $has_org_meta   = $has_meta_schema( $post_id, 'versa_ai_org_schema' );
+
+            if ( $schema_enabled['localbusiness'] && ! $has_local_meta && ! $this->has_open_task( $post_id, 'localbusiness_schema' ) && $can_add_schema() ) {
                 $payload = $this->with_task_summary( 'localbusiness_schema', [] );
                 Versa_AI_SEO_Tasks::insert_task( $post_id, 'localbusiness_schema', $payload, $initial_status );
             }
-            if ( $schema_enabled['org'] && ! $this->has_open_task( $post_id, 'org_schema' ) && $can_add_schema() ) {
+            if ( $schema_enabled['org'] && ! $has_org_meta && ! $this->has_open_task( $post_id, 'org_schema' ) && $can_add_schema() ) {
                 $payload = $this->with_task_summary( 'org_schema', [] );
                 Versa_AI_SEO_Tasks::insert_task( $post_id, 'org_schema', $payload, $initial_status );
             }
@@ -1195,6 +1203,24 @@ class Versa_AI_Optimizer {
         $logo      = function_exists( 'get_site_icon_url' ) ? get_site_icon_url() : '';
         $description = get_bloginfo( 'description' );
         $locations   = implode( ', ', (array) ( $profile['locations'] ?? [] ) );
+        $street      = $profile['business_address'] ?? '';
+        $city        = $profile['business_city'] ?? '';
+        $state       = $profile['business_state'] ?? '';
+        $postcode    = $profile['business_postcode'] ?? '';
+        $country     = $profile['business_country'] ?? '';
+        $phone       = $profile['business_phone'] ?? '';
+        $lat         = $profile['business_lat'] ?? '';
+        $lng         = $profile['business_lng'] ?? '';
+        $same_as     = (array) ( $profile['same_as'] ?? [] );
+        $opening     = $profile['opening_hours'] ?? '';
+        $price_range = $profile['price_range'] ?? '';
+        $payment_methods = (array) ( $profile['payment_methods'] ?? [] );
+        $currencies  = (array) ( $profile['currencies_accepted'] ?? [] );
+        $contact_type = $profile['contact_type'] ?? '';
+        $contact_phone = $profile['contact_phone'] ?? '';
+        $category    = $profile['business_category'] ?? '';
+
+        $address_line = trim( implode( ', ', array_filter( [ $street, $city, $state, $postcode, $country ] ) ) );
 
         $prompt_text = Versa_AI_Prompts::render( 'optimizer-localbusiness-schema', [
             'name'        => $site_name,
@@ -1202,15 +1228,64 @@ class Versa_AI_Optimizer {
             'logo'        => $logo,
             'description' => $description,
             'locations'   => $locations,
-        ], function () use ( $site_name, $site_url, $logo, $description, $locations ) {
+            'address'     => $address_line,
+            'phone'       => $phone,
+            'lat'         => $lat,
+            'lng'         => $lng,
+            'same_as'     => implode( "\n", $same_as ),
+            'opening_hours' => $opening,
+            'price_range' => $price_range,
+            'payment_methods' => implode( ', ', $payment_methods ),
+            'currencies_accepted' => implode( ', ', $currencies ),
+            'contact_type' => $contact_type,
+            'contact_phone' => $contact_phone,
+            'business_category' => $category,
+        ], function () use ( $site_name, $site_url, $logo, $description, $locations, $address_line, $phone, $lat, $lng, $same_as, $opening, $price_range, $payment_methods, $currencies, $contact_type, $contact_phone, $category ) {
             $lines   = [];
-            $lines[] = 'Generate LocalBusiness JSON-LD (choose a subtype if clear).';
+            $lines[] = 'Generate LocalBusiness JSON-LD (choose a subtype if clear, e.g., ProfessionalService).';
             $lines[] = 'Return JSON ONLY with key localbusiness_schema_json (object).';
             $lines[] = 'Name: ' . $site_name;
             $lines[] = 'URL: ' . $site_url;
             $lines[] = 'Logo: ' . $logo;
             $lines[] = 'Description: ' . $description;
             $lines[] = 'Areas served: ' . $locations;
+            if ( $address_line ) {
+                $lines[] = 'Address (use in postalAddress): ' . $address_line;
+            }
+            if ( $phone ) {
+                $lines[] = 'Telephone: ' . $phone;
+            }
+            if ( $contact_phone ) {
+                $lines[] = 'ContactPoint phone: ' . $contact_phone . ( $contact_type ? ' (' . $contact_type . ')' : '' );
+            }
+            if ( $lat && $lng ) {
+                $lines[] = 'Geo: latitude ' . $lat . ', longitude ' . $lng;
+            }
+            if ( $category ) {
+                $lines[] = 'Business category (hint for subtype): ' . $category;
+            }
+            if ( ! empty( $same_as ) ) {
+                $lines[] = 'SameAs URLs:';
+                foreach ( $same_as as $url ) {
+                    $lines[] = '- ' . $url;
+                }
+            }
+            if ( $opening ) {
+                $lines[] = 'Opening hours text (map to openingHoursSpecification): ' . $opening;
+            }
+            if ( $price_range ) {
+                $lines[] = 'Price range: ' . $price_range;
+            }
+            if ( ! empty( $payment_methods ) ) {
+                $lines[] = 'Payment methods: ' . implode( ', ', $payment_methods );
+            }
+            if ( ! empty( $currencies ) ) {
+                $lines[] = 'Currencies accepted: ' . implode( ', ', $currencies );
+            }
+            if ( $contact_type ) {
+                $lines[] = 'ContactPoint type: ' . $contact_type;
+            }
+            $lines[] = 'Include @id pointing to homepage with fragment.';
             return implode( "\n", $lines );
         } );
 
@@ -2190,6 +2265,14 @@ class Versa_AI_Optimizer {
             'auto_service_post_type'    => 'page',
             'auto_service_auto_publish' => false,
             'auto_service_max_per_run'  => 3,
+            'business_address'    => '',
+            'business_city'       => '',
+            'business_state'      => '',
+            'business_postcode'   => '',
+            'business_country'    => '',
+            'business_phone'      => '',
+            'business_lat'        => '',
+            'business_lng'        => '',
         ];
 
         $stored = get_option( Versa_AI_Settings_Page::OPTION_KEY, [] );
