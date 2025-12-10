@@ -18,6 +18,7 @@ class Versa_AI_Tasks_Page {
         add_action( 'admin_post_versa_ai_bulk_tasks', [ $this, 'handle_bulk' ] );
         add_action( 'admin_post_versa_ai_apply_task', [ $this, 'handle_apply' ] );
         add_action( 'admin_post_versa_ai_discard_task', [ $this, 'handle_discard' ] );
+        add_action( 'admin_post_versa_ai_run_cron', [ $this, 'handle_run_cron' ] );
     }
 
     public function render(): void {
@@ -28,6 +29,13 @@ class Versa_AI_Tasks_Page {
         $awaiting = Versa_AI_SEO_Tasks::get_tasks_by_status( 'awaiting_approval', 50 );
         $awaiting_apply = Versa_AI_SEO_Tasks::get_tasks_by_status( 'awaiting_apply', 50 );
         $recent   = Versa_AI_SEO_Tasks::get_tasks_by_status( [ 'done', 'failed' ], 20 );
+
+        $cron_actions = [
+            'versa_ai_weekly_planner'   => __( 'Run Weekly Planner', 'versa-ai-seo-engine' ),
+            'versa_ai_daily_writer'     => __( 'Run Daily Writer', 'versa-ai-seo-engine' ),
+            'versa_ai_daily_seo_scan'   => __( 'Run Daily SEO Scan', 'versa-ai-seo-engine' ),
+            'versa_ai_seo_worker'       => __( 'Run SEO Worker', 'versa-ai-seo-engine' ),
+        ];
 
         include VERSA_AI_SEO_ENGINE_PLUGIN_DIR . 'admin/views/tasks-page.php';
     }
@@ -41,6 +49,27 @@ class Versa_AI_Tasks_Page {
         if ( $task_id ) {
             Versa_AI_SEO_Tasks::update_task_status_only( $task_id, 'pending' );
         }
+        wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_SLUG ) );
+        exit;
+    }
+
+    /**
+     * Run a specific plugin cron hook immediately.
+     */
+    public function handle_run_cron(): void {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( __( 'Unauthorized', 'versa-ai-seo-engine' ) );
+        }
+
+        check_admin_referer( 'versa_ai_run_cron' );
+
+        $hook = isset( $_POST['cron_hook'] ) ? sanitize_text_field( wp_unslash( $_POST['cron_hook'] ) ) : '';
+        $allowed = [ 'versa_ai_weekly_planner', 'versa_ai_daily_writer', 'versa_ai_daily_seo_scan', 'versa_ai_seo_worker' ];
+
+        if ( in_array( $hook, $allowed, true ) ) {
+            do_action( $hook );
+        }
+
         wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_SLUG ) );
         exit;
     }

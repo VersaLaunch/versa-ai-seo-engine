@@ -13,6 +13,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 <div class="wrap">
     <h1><?php esc_html_e( 'Versa AI Tasks', 'versa-ai-seo-engine' ); ?></h1>
 
+    <?php if ( ! empty( $cron_actions ) ) : ?>
+        <h2><?php esc_html_e( 'Run Now', 'versa-ai-seo-engine' ); ?></h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+            <?php foreach ( $cron_actions as $hook => $label ) : ?>
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+                    <input type="hidden" name="action" value="versa_ai_run_cron" />
+                    <input type="hidden" name="cron_hook" value="<?php echo esc_attr( $hook ); ?>" />
+                    <?php wp_nonce_field( 'versa_ai_run_cron' ); ?>
+                    <button type="submit" class="button"><?php echo esc_html( $label ); ?></button>
+                </form>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
     <h2><?php esc_html_e( 'Awaiting Approval', 'versa-ai-seo-engine' ); ?></h2>
     <?php if ( empty( $awaiting ) ) : ?>
         <p><?php esc_html_e( 'No tasks are awaiting approval.', 'versa-ai-seo-engine' ); ?></p>
