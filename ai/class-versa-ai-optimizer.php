@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+require_once VERSA_AI_SEO_ENGINE_PLUGIN_DIR . 'ai/prompts/class-versa-ai-prompts.php';
+
 class Versa_AI_Optimizer {
     private Versa_AI_OpenAI_Client $client;
     private Versa_AI_Crawler $crawler;
@@ -237,17 +239,29 @@ class Versa_AI_Optimizer {
                 continue;
             }
 
-            $page['post_id'] = $post_id;
+        $prompt[] = 'Include FAQ section with 3-5 Q&A if missing.';
             $page['post_slug'] = get_post_field( 'post_name', $post_id );
 
             if ( isset( $page['status'] ) && $page['status'] >= 400 ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'http_error',
-                    'summary'            => 'Page returns an HTTP error',
-                    'recommended_action' => 'Fix the URL or redirect it to a valid destination.',
-                    'priority'           => 'high',
-                ] );
-                continue;
+
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-expand-content', [
+            'business_name'      => $profile['business_name'],
+            'services'           => implode( ', ', $profile['services'] ),
+            'locations'          => implode( ', ', $profile['locations'] ),
+            'target_audience'    => $profile['target_audience'],
+            'tone_of_voice'      => $profile['tone_of_voice'],
+            'max_words_per_post' => (int) $profile['max_words_per_post'],
+            'content'            => $content,
+        ], function () use ( $prompt ) {
+            return implode( "\n", $prompt );
+        } );
+
+        $messages = [
+            [ 'role' => 'system', 'content' => 'You are an SEO content improver. Reply with strict JSON only.' ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
+        ];
             }
 
             if ( ! empty( $page['noindex'] ) ) {
@@ -348,7 +362,7 @@ class Versa_AI_Optimizer {
         $prompt[] = 'Locations: ' . implode( ', ', $profile['locations'] );
         $prompt[] = 'Target audience: ' . $profile['target_audience'];
         $prompt[] = 'Tone: ' . $profile['tone_of_voice'];
-        $prompt[] = 'Keep structure with <h2>/<h3>, keep links if present, add internal links if naturally relevant.';
+        $prompt[] = 'Respect existing structure; use clean HTML (<h2>/<h3>, <p>, <ul>/<ol>, <strong>, <em>); no inline styles; no Markdown.';
         $profile = $this->get_profile();
         $enable_faq_tasks = ! empty( $profile['enable_faq_tasks'] );
         $faq_allowed_post_types = array_map( 'sanitize_key', (array) ( $profile['faq_allowed_post_types'] ?? array( 'post', 'page' ) ) );
@@ -358,15 +372,29 @@ class Versa_AI_Optimizer {
             $prompt[] = 'Only add a FAQ section if it fits the page intent (service/how-to/benefits). Do NOT add for news/announcements.';
             $prompt[] = 'If adding, place the FAQ section near the end before any call-to-action, and keep 3-5 concise Q&A.';
         }
-        $prompt[] = 'Word target: 900 to ' . (int) $profile['max_words_per_post'] . ' words.';
-        $prompt[] = 'Return JSON ONLY with key content_html.';
+        $prompt[] = 'Depth: fill gaps a top-ranking competitor would cover—add specifics, examples, stats, steps, or checklists where helpful. Keep paragraphs short and scannable; use bullets for steps/lists.';
+        $prompt[] = 'Links: retain existing internal links; add up to 5 new natural internal links only when clearly relevant to service/location pages; never invent URLs; no link stuffing.';
+        $prompt[] = 'Provide enough depth to satisfy search intent and compete with top results; aim roughly 900 to ' . (int) $profile['max_words_per_post'] . ' words when warranted, but prefer clarity and completeness over padding.';
+        $prompt[] = 'Return JSON ONLY with key content_html. Never return Markdown.';
         $prompt[] = '--- CURRENT HTML START ---';
         $prompt[] = $content;
         $prompt[] = '--- CURRENT HTML END ---';
 
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-expand-content', [
+            'business_name'      => $profile['business_name'],
+            'services'           => implode( ', ', $profile['services'] ),
+            'locations'          => implode( ', ', $profile['locations'] ),
+            'target_audience'    => $profile['target_audience'],
+            'tone_of_voice'      => $profile['tone_of_voice'],
+            'max_words_per_post' => (int) $profile['max_words_per_post'],
+            'content'            => $content,
+        ], function () use ( $prompt ) {
+            return implode( "\n", $prompt );
+        } );
+
         $messages = [
             [ 'role' => 'system', 'content' => 'You are an SEO content improver. Reply with strict JSON only.' ],
-            [ 'role' => 'user', 'content' => implode( "\n", $prompt ) ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
         ];
 
         $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.35 );
@@ -397,15 +425,25 @@ class Versa_AI_Optimizer {
         $prompt[] = 'Write SEO title and meta description for the post below.';
         $prompt[] = 'Business name: ' . $profile['business_name'];
         $prompt[] = 'Tone: ' . $profile['tone_of_voice'];
-        $prompt[] = 'Return JSON ONLY with keys seo_title and seo_description.';
+        $prompt[] = 'Constraints: include the primary topic/keyword naturally; title <= 60 chars; description <= 155 chars; no clickbait; include value prop + qualifier + brand if room.';
+        $prompt[] = 'Return JSON ONLY with keys seo_title and seo_description. No prose.';
         $prompt[] = '--- TITLE ---';
         $prompt[] = $title;
         $prompt[] = '--- CONTENT ---';
         $prompt[] = wp_strip_all_tags( $content );
 
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-write-snippet', [
+            'business_name' => $profile['business_name'],
+            'tone_of_voice' => $profile['tone_of_voice'],
+            'title'         => $title,
+            'content'       => wp_strip_all_tags( $content ),
+        ], function () use ( $prompt ) {
+            return implode( "\n", $prompt );
+        } );
+
         $messages = [
             [ 'role' => 'system', 'content' => 'You are an SEO expert. Reply with strict JSON only.' ],
-            [ 'role' => 'user', 'content' => implode( "\n", $prompt ) ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
         ];
 
         $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.3 );
@@ -446,7 +484,9 @@ class Versa_AI_Optimizer {
         $prompt = [];
         $prompt[] = 'Add a few natural internal links to the provided service URLs inside the HTML content.';
         $prompt[] = 'Do not change meaning or add new sections.';
-        $prompt[] = 'Use descriptive anchor text. Do not duplicate links excessively.';
+        $prompt[] = 'Use descriptive, varied anchor text; do not invent URLs.';
+        $prompt[] = 'Limit to at most 5 inserted links; avoid duplicating the same anchor to the same URL.';
+        $prompt[] = 'Keep HTML clean; do not add inline styles; do not convert to Markdown.';
         $prompt[] = 'Return JSON ONLY with key content_html.';
         $prompt[] = 'Service URLs:';
         foreach ( $service_urls as $url ) {
@@ -456,9 +496,16 @@ class Versa_AI_Optimizer {
         $prompt[] = $content;
         $prompt[] = '--- CURRENT HTML END ---';
 
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-internal-linking', [
+            'service_urls' => implode( "\n- ", $service_urls ),
+            'content'      => $content,
+        ], function () use ( $prompt ) {
+            return implode( "\n", $prompt );
+        } );
+
         $messages = [
             [ 'role' => 'system', 'content' => 'You are an SEO editor. Reply with strict JSON only.' ],
-            [ 'role' => 'user', 'content' => implode( "\n", $prompt ) ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
         ];
 
         $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.25 );
@@ -492,12 +539,20 @@ class Versa_AI_Optimizer {
 
         $prompt = [];
         $prompt[] = 'Generate FAQPage JSON-LD for this FAQ section. Return JSON ONLY with key faq_schema_json (object).';
+        $prompt[] = 'Use 3-5 question/answer pairs; keep answers concise and factual; avoid medical/legal/financial claims.';
+        $prompt[] = 'Ensure output is valid FAQPage schema JSON-LD.';
         $prompt[] = 'FAQ section HTML:';
         $prompt[] = $faq_section;
 
+        $prompt_text = Versa_AI_Prompts::render( 'optimizer-faq-schema', [
+            'faq_section' => $faq_section,
+        ], function () use ( $prompt ) {
+            return implode( "\n", $prompt );
+        } );
+
         $messages = [
             [ 'role' => 'system', 'content' => 'You are a schema generator. Reply with strict JSON only.' ],
-            [ 'role' => 'user', 'content' => implode( "\n", $prompt ) ],
+            [ 'role' => 'user', 'content' => $prompt_text ],
         ];
 
         $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.2 );

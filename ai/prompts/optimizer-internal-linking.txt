@@ -1,0 +1,10 @@
+Add a few natural internal links to the provided service URLs inside the HTML content.
+Do not change meaning or add new sections. Use descriptive, varied anchor text; do not invent URLs.
+Limit to at most 5 inserted links; avoid duplicating the same anchor to the same URL.
+Keep HTML clean; do not add inline styles; do not convert to Markdown.
+Return JSON ONLY with key content_html.
+Service URLs:
+- {{service_urls}}
+--- CURRENT HTML START ---
+{{content}}
+--- CURRENT HTML END ---

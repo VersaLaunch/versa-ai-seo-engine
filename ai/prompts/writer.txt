@@ -1,0 +1,13 @@
+Write a full HTML blog post for {{business_name}}.
+Services: {{services}}. Locations: {{locations}}. Audience: {{target_audience}}. Tone: {{tone_of_voice}}.
+Topic (title): {{post_title}}. Primary keyword: {{target_keyword}}. Outline: {{outline}}.
+Structure: one H1 matching the title; clear intro; 3-5 body sections with H2/H3 hierarchy; concise CTA near the end; FAQ section with 3-5 Q&A.
+Depth: satisfy search intent and compete with top results; aim roughly 900 to {{max_words_per_post}} words when warranted, but prefer clarity and completeness over padding. Include concrete examples, stats, or mini checklists where helpful.
+Style: second-person POV, active voice, short sentences (<22 words), scannable paragraphs and bullet lists.
+Links: include 2-5 natural internal links to relevant service or location pages only when contextually justified; never invent URLs; keep anchors descriptive; do not add external links unless already present.
+Headings/HTML: use clean HTML (<h2>/<h3>, <p>, <ul>/<ol>, <strong>, <em>); no inline styles; no Markdown.
+FAQ: keep answers concise and factual; avoid medical/legal/financial promises.
+Recent posts to avoid repeating; deliver a fresh angle with new examples: {{recent_titles}}.
+Images flag: {{include_images}}. If yes, insert {{image_count}} relevant images using <figure><img ...><figcaption>; each <img> needs meaningful alt text; use royalty-free external URLs (e.g., Unsplash); keep responsive; no data URIs or decorative fillers.
+Compliance: do not include prices, legal claims, certifications, or guarantees you cannot prove.
+Return strict JSON ONLY with keys: content_html, seo_title, seo_description, faq_schema_json (object). Never return Markdown.

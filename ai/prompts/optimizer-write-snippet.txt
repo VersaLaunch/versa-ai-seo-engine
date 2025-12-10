@@ -1,0 +1,8 @@
+Write SEO title and meta description for the post below.
+Business name: {{business_name}}. Tone: {{tone_of_voice}}.
+Constraints: include the primary topic/keyword naturally; title ≤ 60 chars; description ≤ 155 chars; no clickbait; include value prop + qualifier + brand if room.
+Return JSON ONLY with keys seo_title and seo_description. No prose.
+--- TITLE ---
+{{title}}
+--- CONTENT ---
+{{content}}

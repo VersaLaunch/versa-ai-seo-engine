@@ -1,0 +1,7 @@
+You are an SEO strategist. Generate exactly {{count}} new blog topics with primary keyword and outline for {{business_name}}.
+Business details: Services: {{services}}. Locations: {{locations}}. Audience: {{target_audience}}. Tone: {{tone_of_voice}}. Max words per post: {{max_words}}.
+Dedup: avoid duplicate or similar topics to existing posts: {{existing_titles}}; and queued topics: {{queued_titles}}. Each topic and keyword must be unique.
+Intent mix: cover TOFU/MOFU/BOFU across services and locations where relevant; avoid repeating the same angle.
+Local relevance: where sensible, pair services with locations; include local modifiers naturally.
+Output JSON array only. Each item: {"topic": string, "keyword": string, "outline": [5-7 strings], "search_intent": "TOFU|MOFU|BOFU", "angle": string}.
+No prose, no Markdown.

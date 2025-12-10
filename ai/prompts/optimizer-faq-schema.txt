@@ -1,0 +1,5 @@
+Generate FAQPage JSON-LD for this FAQ section. Return JSON ONLY with key faq_schema_json (object).
+Use 3-5 question/answer pairs; keep answers concise and factual; avoid medical/legal/financial claims.
+Ensure output is valid FAQPage schema JSON-LD.
+FAQ section HTML:
+{{faq_section}}

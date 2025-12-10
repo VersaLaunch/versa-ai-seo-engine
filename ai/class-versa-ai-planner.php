@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+require_once VERSA_AI_SEO_ENGINE_PLUGIN_DIR . 'ai/prompts/class-versa-ai-prompts.php';
+
 class Versa_AI_Planner {
     private Versa_AI_OpenAI_Client $client;
 
@@ -33,9 +35,10 @@ class Versa_AI_Planner {
 
         $count = min( 14, $count ); // hard cap safety.
 
-        $existing_titles = $this->get_existing_titles( 100 );
+        $existing_titles = $this->get_existing_titles( 150 );
+        $existing_queue  = $this->get_queued_titles( 150 );
 
-        $prompt = $this->build_prompt( $profile, $existing_titles, $count );
+        $prompt = $this->build_prompt( $profile, $existing_titles, $existing_queue, $count );
         $messages = [
             [ 'role' => 'system', 'content' => 'You are an SEO strategist. Reply with strict JSON only.' ],
             [ 'role' => 'user', 'content' => $prompt ],
@@ -54,28 +57,52 @@ class Versa_AI_Planner {
             return;
         }
 
-        $this->store_ideas( $ideas );
+        $unique_ideas = $this->filter_duplicates( $ideas, $existing_titles, $existing_queue );
+        if ( empty( $unique_ideas ) ) {
+            Versa_AI_Logger::log( 'planner', 'All proposed ideas were duplicates; none queued.' );
+            return;
+        }
+
+        $this->store_ideas( $unique_ideas );
     }
 
     /**
      * Build user prompt string.
      */
-    private function build_prompt( array $profile, array $existing_titles, int $count ): string {
-        $lines = [];
-        $lines[] = 'Business name: ' . $profile['business_name'];
-        $lines[] = 'Services: ' . implode( ', ', $profile['services'] );
-        $lines[] = 'Locations: ' . implode( ', ', $profile['locations'] );
-        $lines[] = 'Target audience: ' . $profile['target_audience'];
-        $lines[] = 'Tone: ' . $profile['tone_of_voice'];
-        $lines[] = 'Max words: ' . $profile['max_words_per_post'];
-        $lines[] = 'Generate exactly ' . $count . ' new blog topics with primary keyword and outline.';
-        if ( $existing_titles ) {
-            $lines[] = 'Avoid duplicate or similar topics to these existing posts: ' . implode( '; ', $existing_titles );
-        }
+    private function build_prompt( array $profile, array $existing_titles, array $existing_queue, int $count ): string {
+        $context = [
+            'business_name'  => $profile['business_name'],
+            'services'       => implode( ', ', $profile['services'] ),
+            'locations'      => implode( ', ', $profile['locations'] ),
+            'target_audience'=> $profile['target_audience'],
+            'tone_of_voice'  => $profile['tone_of_voice'],
+            'max_words'      => $profile['max_words_per_post'],
+            'count'          => $count,
+            'existing_titles'=> implode( '; ', $existing_titles ),
+            'queued_titles'  => implode( '; ', $existing_queue ),
+        ];
 
-        $lines[] = 'Return JSON array only, no prose. Each item: {"topic": string, "keyword": string, "outline": [strings...] }';
-
-        return implode( "\n", $lines );
+        return Versa_AI_Prompts::render( 'planner', $context, function () use ( $profile, $existing_titles, $existing_queue, $count ) {
+            $lines = [];
+            $lines[] = 'Business name: ' . $profile['business_name'];
+            $lines[] = 'Services: ' . implode( ', ', $profile['services'] );
+            $lines[] = 'Locations: ' . implode( ', ', $profile['locations'] );
+            $lines[] = 'Target audience: ' . $profile['target_audience'];
+            $lines[] = 'Tone: ' . $profile['tone_of_voice'];
+            $lines[] = 'Max words: ' . $profile['max_words_per_post'];
+            $lines[] = 'Generate exactly ' . $count . ' new blog topics with primary keyword and outline.';
+            if ( $existing_titles ) {
+                $lines[] = 'Avoid duplicate or similar topics to these existing posts: ' . implode( '; ', $existing_titles );
+            }
+            if ( $existing_queue ) {
+                $lines[] = 'Do not repeat topics already queued: ' . implode( '; ', $existing_queue );
+            }
+            $lines[] = 'Each topic and keyword must be unique.';
+            $lines[] = 'Cover a mix of TOFU/MOFU/BOFU intents across services and locations; avoid repeating the same angle.';
+            $lines[] = 'Pair services with locations naturally where it makes sense; include local modifiers.';
+            $lines[] = 'Return JSON array only, no prose. Each item: {"topic": string, "keyword": string, "outline": [5-7 strings], "search_intent": "TOFU|MOFU|BOFU", "angle": string}';
+            return implode( "\n", $lines );
+        } );
     }
 
     /**
@@ -99,6 +126,31 @@ class Versa_AI_Planner {
             $title = get_the_title( $post_id );
             if ( $title ) {
                 $titles[] = $title;
+            }
+        }
+
+        return $titles;
+    }
+
+    private function get_queued_titles( int $limit ): array {
+        global $wpdb;
+        $table = $wpdb->prefix . 'versa_ai_content_queue';
+
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT post_title FROM {$table} WHERE status IN (%s,%s,%s) ORDER BY created_at DESC LIMIT %d",
+                'queued',
+                'writing',
+                'published',
+                $limit
+            ),
+            ARRAY_A
+        );
+
+        $titles = [];
+        foreach ( (array) $rows as $row ) {
+            if ( ! empty( $row['post_title'] ) ) {
+                $titles[] = $row['post_title'];
             }
         }
 
@@ -130,6 +182,31 @@ class Versa_AI_Planner {
         }
 
         return $ideas;
+    }
+
+    private function filter_duplicates( array $ideas, array $existing_titles, array $queued_titles ): array {
+        $seen_slugs = [];
+        foreach ( array_merge( $existing_titles, $queued_titles ) as $title ) {
+            $slug = sanitize_title( $title );
+            if ( $slug ) {
+                $seen_slugs[ $slug ] = true;
+            }
+        }
+
+        $unique = [];
+        foreach ( $ideas as $idea ) {
+            $slug = sanitize_title( $idea['topic'] );
+            if ( ! $slug ) {
+                continue;
+            }
+            if ( isset( $seen_slugs[ $slug ] ) ) {
+                continue;
+            }
+            $seen_slugs[ $slug ] = true;
+            $unique[] = $idea;
+        }
+
+        return $unique;
     }
 
     /**

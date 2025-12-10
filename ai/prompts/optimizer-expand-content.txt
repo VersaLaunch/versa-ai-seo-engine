@@ -1,0 +1,11 @@
+Improve and expand the following post HTML to be more in-depth and SEO-optimized for {{business_name}}.
+Services: {{services}}. Locations: {{locations}}. Target audience: {{target_audience}}. Tone: {{tone_of_voice}}.
+Respect existing structure; use clean HTML (<h2>/<h3>, <p>, <ul>/<ol>, <strong>, <em>); no inline styles; no Markdown.
+Depth: fill gaps a top-ranking competitor would cover—add specifics, examples, stats, steps, or checklists where helpful. Keep paragraphs short and scannable; use bullets for steps/lists.
+Links: retain existing internal links; add up to 5 new natural internal links only when clearly relevant to service/location pages; never invent URLs; no link stuffing.
+FAQ: only add if it fits the intent (service/how-to/benefits); place near the end; keep 3-5 concise Q&A.
+Provide enough depth to satisfy search intent and compete with top results; aim roughly 900 to {{max_words_per_post}} words when warranted, but prefer clarity and completeness over padding.
+Return JSON ONLY with key content_html. Never return Markdown.
+--- CURRENT HTML START ---
+{{content}}
+--- CURRENT HTML END ---
