@@ -388,6 +388,9 @@ class Versa_AI_Optimizer {
         }
 
         $issues = [];
+
+        // Check robots.txt presence and blocking rules once per crawl.
+        $issues = array_merge( $issues, $this->check_robots_txt() );
         foreach ( $pages as $page ) {
             $post_id = url_to_postid( $page['url'] );
             // Only consider pages we can map to posts/pages.
@@ -2142,6 +2145,121 @@ class Versa_AI_Optimizer {
         $lines[] = '<p>Call to action: contact, book, or request a quote.</p>';
 
         return implode( "\n", $lines );
+    }
+
+    private function check_robots_txt(): array {
+        $url      = home_url( '/robots.txt' );
+        $response = wp_remote_get( $url, [ 'timeout' => 8, 'redirection' => 3 ] );
+
+        $home_post_id = (int) get_option( 'page_on_front' );
+        if ( $home_post_id <= 0 ) {
+            $home_post_id = (int) get_option( 'page_for_posts' );
+        }
+        $post_slug = $home_post_id ? get_post_field( 'post_name', $home_post_id ) : '';
+
+        $issues = [];
+
+        if ( is_wp_error( $response ) ) {
+            $issues[] = [
+                'post_id'            => $home_post_id,
+                'post_slug'          => $post_slug,
+                'url'                => $url,
+                'issue'              => 'robots_missing',
+                'summary'            => 'Site audit: robots.txt could not be fetched; add one to guide crawlers.',
+                'recommended_action' => 'Create /robots.txt with sensible User-agent: * rules, disallow only sensitive paths (e.g., /wp-admin/), and include a Sitemap URL.',
+                'priority'           => 'medium',
+                'word_count'         => 0,
+                'status'             => 0,
+            ];
+            return $issues;
+        }
+
+        $status = (int) wp_remote_retrieve_response_code( $response );
+        $body   = (string) wp_remote_retrieve_body( $response );
+
+        if ( $status >= 400 || '' === trim( $body ) ) {
+            $issues[] = [
+                'post_id'            => $home_post_id,
+                'post_slug'          => $post_slug,
+                'url'                => $url,
+                'issue'              => 'robots_missing',
+                'summary'            => 'Site audit: robots.txt is missing; add one to control crawl access and surface your sitemap.',
+                'recommended_action' => 'Create /robots.txt with User-agent: * rules, disallow only sensitive paths (e.g., /wp-admin/), and include Sitemap: ' . rtrim( home_url( '/' ), '/' ) . '/sitemap.xml.',
+                'priority'           => 'medium',
+                'word_count'         => 0,
+                'status'             => $status,
+            ];
+            return $issues;
+        }
+
+        $flags = $this->parse_robots_txt_flags( $body );
+
+        if ( $flags['disallow_all'] ) {
+            $issues[] = [
+                'post_id'            => $home_post_id,
+                'post_slug'          => $post_slug,
+                'url'                => $url,
+                'issue'              => 'robots_blocking_all',
+                'summary'            => 'Site audit: robots.txt blocks all crawlers (Disallow: /).',
+                'recommended_action' => 'Remove the global Disallow: / rule for User-agent: *; only disallow admin or system paths and include your sitemap URL.',
+                'priority'           => 'high',
+                'word_count'         => 0,
+                'status'             => $status,
+            ];
+        }
+
+        if ( ! $flags['has_sitemap'] ) {
+            $issues[] = [
+                'post_id'            => $home_post_id,
+                'post_slug'          => $post_slug,
+                'url'                => $url,
+                'issue'              => 'robots_missing_sitemap',
+                'summary'            => 'Site audit: robots.txt does not list a sitemap.',
+                'recommended_action' => 'Add a Sitemap line (e.g., Sitemap: ' . rtrim( home_url( '/' ), '/' ) . '/sitemap.xml) so crawlers discover URLs faster.',
+                'priority'           => 'low',
+                'word_count'         => 0,
+                'status'             => $status,
+            ];
+        }
+
+        return $issues;
+    }
+
+    private function parse_robots_txt_flags( string $body ): array {
+        $lines         = preg_split( '/\r?\n/', strtolower( $body ) );
+        $disallow_all  = false;
+        $has_sitemap   = false;
+        $in_global_ua  = false;
+
+        foreach ( $lines as $line ) {
+            $line = trim( $line );
+            if ( '' === $line || 0 === strpos( $line, '#' ) ) {
+                continue;
+            }
+
+            if ( 0 === stripos( $line, 'user-agent:' ) ) {
+                $ua         = trim( substr( $line, strlen( 'user-agent:' ) ) );
+                $in_global_ua = ( '*' === $ua || '' === $ua );
+                continue;
+            }
+
+            if ( 0 === stripos( $line, 'disallow:' ) && $in_global_ua ) {
+                $rule = trim( substr( $line, strlen( 'disallow:' ) ) );
+                if ( '/' === $rule ) {
+                    $disallow_all = true;
+                }
+                continue;
+            }
+
+            if ( 0 === stripos( $line, 'sitemap:' ) ) {
+                $has_sitemap = true;
+            }
+        }
+
+        return [
+            'disallow_all' => $disallow_all,
+            'has_sitemap'  => $has_sitemap,
+        ];
     }
 
     private function canonical_mismatch( string $url, string $canonical ): bool {
