@@ -136,6 +136,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                         $discard_url = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_discard_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_discard_' . (int) $task['id'] );
                         $post_link   = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
                         $result      = json_decode( $task['result'] ?? '', true ) ?: [];
+                        $payload     = json_decode( $task['payload'] ?? '', true ) ?: [];
                         ?>
                         <tr>
                             <td><?php echo esc_html( $task['id'] ); ?></td>
@@ -147,7 +148,16 @@ if ( ! defined( 'ABSPATH' ) ) {
                                 <?php endif; ?>
                             </td>
                             <td><?php echo esc_html( $task['task_type'] ); ?></td>
-                            <td><code style="white-space:pre-wrap;"><?php echo esc_html( $task['result'] ); ?></code></td>
+                            <td>
+                                <?php if ( 'site_audit' === $task['task_type'] ) : ?>
+                                    <div><strong><?php esc_html_e( 'Summary:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['summary'] ?? '' ); ?></div>
+                                    <div><strong><?php esc_html_e( 'Recommended:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['recommended_action'] ?? '' ); ?></div>
+                                    <div><strong><?php esc_html_e( 'URL:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['url'] ?? '' ); ?></div>
+                                    <div><strong><?php esc_html_e( 'Words:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['word_count'] ?? '' ); ?></div>
+                                <?php else : ?>
+                                    <code style="white-space:pre-wrap;"><?php echo esc_html( $task['result'] ); ?></code>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <a class="button button-primary" href="<?php echo esc_url( $apply_url ); ?>"><?php esc_html_e( 'Apply', 'versa-ai-seo-engine' ); ?></a>
                                 <a class="button" href="<?php echo esc_url( $discard_url ); ?>"><?php esc_html_e( 'Discard', 'versa-ai-seo-engine' ); ?></a>

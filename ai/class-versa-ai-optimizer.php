@@ -209,8 +209,39 @@ class Versa_AI_Optimizer {
 
         $issues = [];
         foreach ( $pages as $page ) {
-            if ( ! $page['has_title'] || ! $page['has_meta_description'] || $page['word_count'] < 400 ) {
-                $issues[] = $page;
+            $post_id = url_to_postid( $page['url'] );
+            // Only consider pages we can map to posts/pages.
+            if ( $post_id <= 0 ) {
+                continue;
+            }
+
+            $page['post_id'] = $post_id;
+
+            if ( ! $page['has_title'] ) {
+                $issues[] = array_merge( $page, [
+                    'issue'              => 'missing_title',
+                    'summary'            => 'Missing meta title',
+                    'recommended_action' => 'Generate a meta title for this page.',
+                    'priority'           => 'high',
+                ] );
+            }
+
+            if ( ! $page['has_meta_description'] ) {
+                $issues[] = array_merge( $page, [
+                    'issue'              => 'missing_meta_description',
+                    'summary'            => 'Missing meta description',
+                    'recommended_action' => 'Generate a meta description for this page.',
+                    'priority'           => 'medium',
+                ] );
+            }
+
+            if ( $page['word_count'] > 0 && $page['word_count'] < 400 ) {
+                $issues[] = array_merge( $page, [
+                    'issue'              => 'thin_content',
+                    'summary'            => 'Content is thin',
+                    'recommended_action' => 'Expand the content to at least 900 words with better depth.',
+                    'priority'           => 'medium',
+                ] );
             }
         }
 
@@ -220,45 +251,22 @@ class Versa_AI_Optimizer {
         }
 
         $profile = $this->get_profile();
-        if ( empty( $profile['openai_api_key'] ) || empty( $profile['openai_model'] ) ) {
-            return;
-        }
-
-        $prompt = [];
-        $prompt[] = 'You are an SEO auditor. Given these page findings, output JSON array of 3-8 prioritized tasks.';
-        $prompt[] = 'Each task: {"summary": string, "priority": "high"|"medium"|"low", "recommended_action": string }';
-        $prompt[] = 'Findings:';
-        foreach ( $issues as $issue ) {
-            $prompt[] = sprintf(
-                '- URL: %s | has_title: %s | has_meta_description: %s | word_count: %d',
-                $issue['url'],
-                $issue['has_title'] ? 'yes' : 'no',
-                $issue['has_meta_description'] ? 'yes' : 'no',
-                $issue['word_count']
-            );
-        }
-
-        $messages = [
-            [ 'role' => 'system', 'content' => 'Reply with strict JSON only.' ],
-            [ 'role' => 'user', 'content' => implode( "\n", $prompt ) ],
-        ];
-
-        $resp = $this->client->chat( $profile['openai_api_key'], $profile['openai_model'], $messages, 0.25 );
-        if ( ! $resp['success'] ) {
-            Versa_AI_Logger::log( 'optimizer', 'Site crawl OpenAI error: ' . $resp['error'] );
-            return;
-        }
-
-        $tasks = $this->parse_site_tasks_json( $resp['data'] );
-        if ( empty( $tasks ) ) {
-            return;
-        }
-
         $require_approval = (bool) ( $profile['require_task_approval'] ?? false );
         $initial_status   = $require_approval ? 'awaiting_approval' : 'pending';
 
-        foreach ( $tasks as $t ) {
-            Versa_AI_SEO_Tasks::insert_task( 0, 'site_audit', $t, $initial_status );
+        foreach ( $issues as $issue ) {
+            // Store actionable payload including post_id and URL.
+            $payload = [
+                'post_id'            => $issue['post_id'],
+                'url'                => $issue['url'],
+                'issue'              => $issue['issue'],
+                'summary'            => $issue['summary'],
+                'recommended_action' => $issue['recommended_action'],
+                'priority'           => $issue['priority'],
+                'word_count'         => $issue['word_count'],
+            ];
+
+            Versa_AI_SEO_Tasks::insert_task( $issue['post_id'], 'site_audit', $payload, $initial_status );
         }
 
         set_transient( $transient_key, 1, 6 * HOUR_IN_SECONDS );

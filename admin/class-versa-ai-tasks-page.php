@@ -171,6 +171,30 @@ class Versa_AI_Tasks_Page {
                 update_post_meta( $post_id, 'versa_ai_faq_schema', wp_json_encode( $result['faq_schema_json'] ) );
                 return [ 'success' => true, 'message' => __( 'FAQ schema applied.', 'versa-ai-seo-engine' ) ];
 
+            case 'site_audit':
+                // Convert site audit suggestions into concrete tasks for the mapped post.
+                $profile          = get_option( Versa_AI_Settings_Page::OPTION_KEY, [] );
+                $require_approval = ! empty( $profile['require_task_approval'] );
+                $new_status       = $require_approval ? 'awaiting_approval' : 'pending';
+
+                $issue = $task['task_type'];
+                $payload_issue = $task['payload'] ?? '';
+
+                $payload_decoded = json_decode( $payload_issue, true );
+                $issue_type      = $payload_decoded['issue'] ?? '';
+
+                if ( 'missing_meta_description' === $issue_type || 'missing_title' === $issue_type ) {
+                    Versa_AI_SEO_Tasks::insert_task( $post_id, 'write_snippet', [], $new_status );
+                    return [ 'success' => true, 'message' => __( 'Created snippet task from site audit.', 'versa-ai-seo-engine' ) ];
+                }
+
+                if ( 'thin_content' === $issue_type ) {
+                    Versa_AI_SEO_Tasks::insert_task( $post_id, 'expand_content', [], $new_status );
+                    return [ 'success' => true, 'message' => __( 'Created expand content task from site audit.', 'versa-ai-seo-engine' ) ];
+                }
+
+                return [ 'success' => false, 'message' => __( 'Nothing to apply for this site audit item.', 'versa-ai-seo-engine' ) ];
+
             default:
                 return [ 'success' => false, 'message' => __( 'Nothing to apply for this task type.', 'versa-ai-seo-engine' ) ];
         }
