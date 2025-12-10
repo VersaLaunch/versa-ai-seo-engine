@@ -386,8 +386,8 @@ class Versa_AI_Optimizer {
             if ( isset( $page['status'] ) && $page['status'] >= 400 ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'http_error',
-                    'summary'            => 'Page returned HTTP ' . $page['status'],
-                    'recommended_action' => 'Resolve the HTTP error or redirect to a valid URL.',
+                    'summary'            => 'Site audit: ' . $page['url'] . ' returns HTTP ' . $page['status'] . '; fix or redirect so it stays indexable.',
+                    'recommended_action' => 'Fix the HTTP ' . $page['status'] . ' on ' . $page['url'] . ' or 301 redirect to a working page that should rank.',
                     'priority'           => 'high',
                 ] );
             }
@@ -395,8 +395,8 @@ class Versa_AI_Optimizer {
             if ( ! empty( $page['noindex'] ) ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'noindex_tag',
-                    'summary'            => 'Page is blocked by noindex',
-                    'recommended_action' => 'Remove the noindex directive if this page should rank.',
+                    'summary'            => 'Site audit: ' . $page['url'] . ' is blocked by noindex; remove if this page should rank.',
+                    'recommended_action' => 'If this page should be indexable, remove the noindex directive from meta robots or headers; leave only if intentionally hidden (e.g., thank-you pages).',
                     'priority'           => 'high',
                 ] );
             }
@@ -404,8 +404,8 @@ class Versa_AI_Optimizer {
             if ( ! empty( $page['canonical'] ) && $this->canonical_mismatch( $page['url'], $page['canonical'] ) ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'canonical_mismatch',
-                    'summary'            => 'Canonical URL points elsewhere',
-                    'recommended_action' => 'Update canonical to the live URL or ensure the canonical target is correct.',
+                    'summary'            => 'Site audit: canonical on ' . $page['url'] . ' points to ' . $page['canonical'] . '; align with the preferred URL.',
+                    'recommended_action' => 'Update the canonical tag to the live URL for this page, or confirm the canonical target is the intended primary version to avoid deindexing this page.',
                     'priority'           => 'medium',
                 ] );
             }
@@ -413,8 +413,8 @@ class Versa_AI_Optimizer {
             if ( ! $page['has_title'] ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'missing_title',
-                    'summary'            => 'Missing meta title',
-                    'recommended_action' => 'Generate a meta title for this page.',
+                    'summary'            => 'Site audit: meta title missing on ' . $page['url'] . '; add a unique, descriptive title so it can show in search.',
+                    'recommended_action' => 'Set a meta title (~55-60 chars) that names the topic and brand for this page (slug ' . ( $page['post_slug'] ?? '' ) . ').',
                     'priority'           => 'high',
                 ] );
             }
@@ -422,8 +422,8 @@ class Versa_AI_Optimizer {
             if ( ! $page['has_meta_description'] ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'missing_meta_description',
-                    'summary'            => 'Missing meta description',
-                    'recommended_action' => 'Generate a meta description for this page.',
+                    'summary'            => 'Site audit: meta description missing on ' . $page['url'] . '; add a concise summary to improve click-through.',
+                    'recommended_action' => 'Write a 120-155 character meta description that summarizes the offer/intent and includes a call to action for this page.',
                     'priority'           => 'medium',
                 ] );
             }
@@ -431,8 +431,8 @@ class Versa_AI_Optimizer {
             if ( isset( $page['has_h1'] ) && ! $page['has_h1'] ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'missing_h1',
-                    'summary'            => 'Missing H1 heading',
-                    'recommended_action' => 'Add a single, descriptive H1 heading that matches the topic.',
+                    'summary'            => 'Site audit: H1 heading missing on ' . $page['url'] . '; add one clear H1 matching the topic.',
+                    'recommended_action' => 'Insert a single H1 near the top that states the main intent; avoid multiple H1s and keep it aligned with the target keyword.',
                     'priority'           => 'medium',
                 ] );
             }
@@ -440,8 +440,8 @@ class Versa_AI_Optimizer {
             if ( $page['word_count'] > 0 && $page['word_count'] < 600 ) {
                 $issues[] = array_merge( $page, [
                     'issue'              => 'thin_content',
-                    'summary'            => 'Content is thin',
-                    'recommended_action' => 'Expand the content to at least 900 words with better depth.',
+                    'summary'            => 'Site audit: content is thin (~' . $page['word_count'] . ' words) on ' . $page['url'] . '; expand to compete.',
+                    'recommended_action' => 'Add depth to reach ~900+ words: cover key subtopics, FAQs, examples, and internal links to related services/locations.',
                     'priority'           => 'medium',
                 ] );
             }
@@ -1319,7 +1319,7 @@ class Versa_AI_Optimizer {
                 if ( $count > 0 && isset( $schema['mainEntity'][0]['name'] ) ) {
                     $first_q = $safe_str( $schema['mainEntity'][0]['name'], 80 );
                 }
-                $summary = 'Adds FAQPage JSON-LD with ' . $count . ' Q&A pairs';
+                $summary = 'Adds FAQPage JSON-LD (' . $count . ' Q&A) to unlock FAQ rich results';
                 if ( $first_q ) {
                     $summary .= '; first question: ' . $first_q;
                 }
@@ -1331,7 +1331,7 @@ class Versa_AI_Optimizer {
                 $author   = $safe_str( $schema['author']['name'] ?? '' );
                 $date     = $safe_str( $schema['datePublished'] ?? '' );
                 $mod      = $safe_str( $schema['dateModified'] ?? '' );
-                $summary  = 'Adds Article/BlogPosting JSON-LD for "' . $headline . '" by ' . ( $author ?: 'unknown author' );
+                $summary  = 'Adds Article/BlogPosting JSON-LD so search can show article rich snippets for "' . $headline . '" by ' . ( $author ?: 'unknown author' );
                 if ( $date ) {
                     $summary .= ' (published ' . $date . ')';
                 }
@@ -1347,7 +1347,7 @@ class Versa_AI_Optimizer {
                 if ( $items > 0 && isset( $schema['itemListElement'][0]['item']['name'] ) ) {
                     $first = $safe_str( $schema['itemListElement'][0]['item']['name'], 60 );
                 }
-                $summary = 'Adds BreadcrumbList JSON-LD with ' . $items . ' crumbs';
+                $summary = 'Adds BreadcrumbList JSON-LD (' . $items . ' items) so Google can show breadcrumb links';
                 if ( $first ) {
                     $summary .= '; starts with ' . $first;
                 }
@@ -1371,7 +1371,7 @@ class Versa_AI_Optimizer {
                     }
                 }
 
-                $summary = 'Adds HowTo JSON-LD "' . $name . '" with ' . $step_count . ' steps';
+                $summary = 'Adds HowTo JSON-LD for "' . $name . '" to enable HowTo rich results (' . $step_count . ' steps)';
                 if ( $desc ) {
                     $summary .= ' covering: ' . $desc;
                 }
@@ -1387,7 +1387,7 @@ class Versa_AI_Optimizer {
                 $upload    = $safe_str( $schema['uploadDate'] ?? '' );
                 $video_url = $safe_str( $schema['contentUrl'] ?? ( $schema['url'] ?? '' ) );
                 $thumb     = $safe_str( $schema['thumbnailUrl'] ?? '' );
-                $summary   = 'Adds VideoObject JSON-LD for "' . $name . '"';
+                $summary   = 'Adds VideoObject JSON-LD so the video "' . $name . '" is eligible for video rich results';
                 if ( $duration ) {
                     $summary .= ' (' . $duration . ')';
                 }
@@ -1410,7 +1410,7 @@ class Versa_AI_Optimizer {
                 $price    = is_array( $offer ) ? ( $offer['price'] ?? '' ) : '';
                 $currency = is_array( $offer ) ? ( $offer['priceCurrency'] ?? '' ) : '';
                 $avail    = is_array( $offer ) ? ( $offer['availability'] ?? '' ) : '';
-                $summary  = 'Adds Product JSON-LD for "' . $name . '"';
+                $summary  = 'Adds Product JSON-LD so search can show product rich results for "' . $name . '"';
                 if ( $brand ) {
                     $summary .= ' by ' . $brand;
                 }
@@ -1439,7 +1439,7 @@ class Versa_AI_Optimizer {
                 $offers      = $schema['offers'] ?? [];
                 $price       = is_array( $offers ) ? ( $offers['price'] ?? '' ) : '';
                 $currency    = is_array( $offers ) ? ( $offers['priceCurrency'] ?? '' ) : '';
-                $summary     = 'Adds Service JSON-LD for "' . $name . '" by ' . ( $provider ?: 'provider not set' );
+                $summary     = 'Adds Service JSON-LD to clarify the offering "' . $name . '" by ' . ( $provider ?: 'provider not set' );
                 if ( $areas ) {
                     $summary .= '; areas served: ' . $areas;
                 }
@@ -1458,7 +1458,7 @@ class Versa_AI_Optimizer {
                 $end       = $safe_str( $schema['endDate'] ?? '' );
                 $location  = $safe_str( $schema['location']['name'] ?? ( $schema['location']['address']['streetAddress'] ?? '' ) );
                 $is_online = isset( $schema['eventAttendanceMode'] ) && false !== stripos( (string) $schema['eventAttendanceMode'], 'Online' );
-                $summary   = 'Adds Event JSON-LD for "' . $name . '" starting ' . ( $start ?: 'TBD' );
+                $summary   = 'Adds Event JSON-LD so search can show event details for "' . $name . '" starting ' . ( $start ?: 'TBD' );
                 if ( $end ) {
                     $summary .= ' ending ' . $end;
                 }
@@ -1479,13 +1479,13 @@ class Versa_AI_Optimizer {
             case 'website_schema':
                 $name    = $safe_str( $schema['name'] ?? '' );
                 $url     = $safe_str( $schema['url'] ?? '' );
-                $summary = 'Adds WebSite JSON-LD for ' . ( $name ?: 'site' );
+                $summary = 'Adds WebSite JSON-LD so the homepage exposes site name and search action';
                 if ( $url ) {
                     $summary .= ' (' . $url . ')';
                 }
                 $has_search = ! empty( $schema['potentialAction'] );
                 if ( $has_search ) {
-                    $summary .= '; includes site search action.';
+                    $summary .= '; includes site search action for sitelinks search box.';
                 } else {
                     $warnings[] = 'SearchAction missing; ensure search target is included.';
                 }
@@ -1496,7 +1496,7 @@ class Versa_AI_Optimizer {
                 $name    = $safe_str( $schema['name'] ?? '' );
                 $url     = $safe_str( $schema['url'] ?? '' );
                 $logo    = $safe_str( $schema['logo'] ?? '' );
-                $summary = 'Adds Organization JSON-LD for ' . $name;
+                $summary = 'Adds Organization JSON-LD to declare brand identity for ' . $name;
                 if ( $url ) {
                     $summary .= ' (' . $url . ')';
                 }
@@ -1513,7 +1513,7 @@ class Versa_AI_Optimizer {
                 $address     = $safe_str( $schema['address']['streetAddress'] ?? '' );
                 $phone       = $safe_str( $schema['telephone'] ?? '' );
                 $has_geo     = ! empty( $schema['geo']['latitude'] ) && ! empty( $schema['geo']['longitude'] );
-                $summary     = 'Adds LocalBusiness JSON-LD for ' . $name;
+                $summary     = 'Adds LocalBusiness JSON-LD so the business is eligible for local pack and knowledge panel details: ' . $name;
                 if ( $address ) {
                     $summary .= '; address: ' . $address;
                 }
