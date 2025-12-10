@@ -200,6 +200,76 @@ class Versa_AI_Tasks_Page {
                 update_post_meta( $post_id, 'versa_ai_faq_schema', wp_json_encode( $result['faq_schema_json'] ) );
                 return [ 'success' => true, 'message' => __( 'FAQ schema applied.', 'versa-ai-seo-engine' ) ];
 
+            case 'article_schema':
+                if ( empty( $result['article_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No Article schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_article_schema', wp_json_encode( $result['article_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'Article schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'breadcrumb_schema':
+                if ( empty( $result['breadcrumb_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No Breadcrumb schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_breadcrumb_schema', wp_json_encode( $result['breadcrumb_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'Breadcrumb schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'howto_schema':
+                if ( empty( $result['howto_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No HowTo schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_howto_schema', wp_json_encode( $result['howto_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'HowTo schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'video_schema':
+                if ( empty( $result['video_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No Video schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_video_schema', wp_json_encode( $result['video_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'Video schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'org_schema':
+                if ( empty( $result['org_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No Organization schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_org_schema', wp_json_encode( $result['org_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'Organization schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'localbusiness_schema':
+                if ( empty( $result['localbusiness_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No LocalBusiness schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_localbusiness_schema', wp_json_encode( $result['localbusiness_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'LocalBusiness schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'product_schema':
+                if ( empty( $result['product_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No Product schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_product_schema', wp_json_encode( $result['product_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'Product schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'service_schema':
+                if ( empty( $result['service_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No Service schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_service_schema', wp_json_encode( $result['service_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'Service schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'event_schema':
+                if ( empty( $result['event_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No Event schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_event_schema', wp_json_encode( $result['event_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'Event schema applied.', 'versa-ai-seo-engine' ) ];
+
+            case 'website_schema':
+                if ( empty( $result['website_schema_json'] ) ) {
+                    return [ 'success' => false, 'message' => __( 'No WebSite schema to apply.', 'versa-ai-seo-engine' ) ];
+                }
+                update_post_meta( $post_id, 'versa_ai_website_schema', wp_json_encode( $result['website_schema_json'] ) );
+                return [ 'success' => true, 'message' => __( 'WebSite schema applied.', 'versa-ai-seo-engine' ) ];
+
             case 'site_audit':
                 // Convert site audit suggestions into concrete tasks for the mapped post.
                 $profile          = get_option( Versa_AI_Settings_Page::OPTION_KEY, [] );
