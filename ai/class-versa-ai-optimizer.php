@@ -153,7 +153,18 @@ class Versa_AI_Optimizer {
             Versa_AI_SEO_Tasks::insert_task( $post_id, 'internal_linking', [ 'service_urls' => $service_urls ], $initial_status );
         }
 
-        if ( $snapshot['has_faq_section'] && ! $snapshot['has_faq_schema'] ) {
+        $profile = $this->get_profile();
+        $faq_min_words = isset( $profile['faq_min_word_count'] ) ? (int) $profile['faq_min_word_count'] : 0;
+        $enable_faq_tasks = ! empty( $profile['enable_faq_tasks'] );
+        $faq_allowed_post_types = array_map( 'sanitize_key', (array) ( $profile['faq_allowed_post_types'] ?? array( 'post', 'page' ) ) );
+        $post_type = get_post_type( $post_id );
+
+        $faq_allowed = $enable_faq_tasks
+            && $post_type
+            && in_array( sanitize_key( $post_type ), $faq_allowed_post_types, true )
+            && ( $faq_min_words <= 0 || $snapshot['word_count'] >= $faq_min_words );
+
+        if ( $faq_allowed && $snapshot['has_faq_section'] && ! $snapshot['has_faq_schema'] ) {
             Versa_AI_SEO_Tasks::insert_task(
                 $post_id,
                 'faq_schema',
@@ -335,7 +346,15 @@ class Versa_AI_Optimizer {
         $prompt[] = 'Target audience: ' . $profile['target_audience'];
         $prompt[] = 'Tone: ' . $profile['tone_of_voice'];
         $prompt[] = 'Keep structure with <h2>/<h3>, keep links if present, add internal links if naturally relevant.';
-        $prompt[] = 'Include FAQ section with 3-5 Q&A if missing.';
+        $profile = $this->get_profile();
+        $enable_faq_tasks = ! empty( $profile['enable_faq_tasks'] );
+        $faq_allowed_post_types = array_map( 'sanitize_key', (array) ( $profile['faq_allowed_post_types'] ?? array( 'post', 'page' ) ) );
+        $post_type = get_post_type( $post_id );
+
+        if ( $enable_faq_tasks && $post_type && in_array( sanitize_key( $post_type ), $faq_allowed_post_types, true ) ) {
+            $prompt[] = 'Only add a FAQ section if it fits the page intent (service/how-to/benefits). Do NOT add for news/announcements.';
+            $prompt[] = 'If adding, place the FAQ section near the end before any call-to-action, and keep 3-5 concise Q&A.';
+        }
         $prompt[] = 'Word target: 900 to ' . (int) $profile['max_words_per_post'] . ' words.';
         $prompt[] = 'Return JSON ONLY with key content_html.';
         $prompt[] = '--- CURRENT HTML START ---';
@@ -683,6 +702,9 @@ class Versa_AI_Optimizer {
             'openai_model'        => 'gpt-4.1-mini',
             'crawl_limit'         => 120,
             'crawl_cooldown_hours'=> 4,
+            'enable_faq_tasks'    => true,
+            'faq_min_word_count'  => 600,
+            'faq_allowed_post_types'=> [ 'post', 'page' ],
         ];
 
         $stored = get_option( Versa_AI_Settings_Page::OPTION_KEY, [] );

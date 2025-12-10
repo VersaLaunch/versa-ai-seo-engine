@@ -70,6 +70,9 @@ class Versa_AI_Settings_Page {
             'openai_model'          => 'gpt-4.1-mini',
             'crawl_limit'           => 120,
             'crawl_cooldown_hours'  => 4,
+            'enable_faq_tasks'      => true,
+            'faq_min_word_count'    => 600,
+            'faq_allowed_post_types'=> array( 'post', 'page' ),
         );
 
         $stored = get_option( self::OPTION_KEY, array() );
@@ -108,6 +111,14 @@ class Versa_AI_Settings_Page {
         $crawl_cooldown_hours = isset( $input['crawl_cooldown_hours'] ) ? (int) $input['crawl_cooldown_hours'] : 4;
         $crawl_cooldown_hours = max( 1, min( 24, $crawl_cooldown_hours ) );
 
+        $faq_min_word_count = isset( $input['faq_min_word_count'] ) ? (int) $input['faq_min_word_count'] : 600;
+        $faq_min_word_count = max( 0, min( 5000, $faq_min_word_count ) );
+
+        $faq_allowed_post_types = $this->split_list( $input['faq_allowed_post_types'] ?? array( 'post', 'page' ) );
+        if ( empty( $faq_allowed_post_types ) ) {
+            $faq_allowed_post_types = array( 'post', 'page' );
+        }
+
         $new_api_key = isset( $input['openai_api_key'] ) ? trim( $input['openai_api_key'] ) : '';
         if ( '' === $new_api_key && isset( $stored_option['openai_api_key'] ) ) {
             $new_api_key = $stored_option['openai_api_key']; // keep existing if left blank.
@@ -129,6 +140,9 @@ class Versa_AI_Settings_Page {
             'openai_model'          => sanitize_text_field( isset( $input['openai_model'] ) ? $input['openai_model'] : 'gpt-4.1-mini' ),
             'crawl_limit'           => $crawl_limit,
             'crawl_cooldown_hours'  => $crawl_cooldown_hours,
+            'enable_faq_tasks'      => ! empty( $input['enable_faq_tasks'] ),
+            'faq_min_word_count'    => $faq_min_word_count,
+            'faq_allowed_post_types'=> $faq_allowed_post_types,
         );
     }
 
@@ -146,6 +160,20 @@ class Versa_AI_Settings_Page {
         }
 
         $trimmed = array_filter( array_map( 'trim', $lines ) );
+        return array_values( $trimmed );
+    }
+
+    private function split_list( $text ): array {
+        if ( is_array( $text ) ) {
+            $parts = $text;
+        } else {
+            $parts = preg_split( '/[,\r\n]+/', (string) $text );
+            if ( ! is_array( $parts ) ) {
+                $parts = array();
+            }
+        }
+
+        $trimmed = array_filter( array_map( 'trim', $parts ) );
         return array_values( $trimmed );
     }
 }

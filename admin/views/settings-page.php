@@ -146,6 +146,32 @@ if ( ! defined( 'ABSPATH' ) ) {
                         <p class="description"><?php esc_html_e( 'Minimum hours between crawls. Lower values re-crawl more often; higher reduces load.', 'versa-ai-seo-engine' ); ?></p>
                     </td>
                 </tr>
+
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Generate FAQ Tasks', 'versa-ai-seo-engine' ); ?></th>
+                    <td>
+                        <label>
+                            <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[enable_faq_tasks]" type="checkbox" value="1" <?php checked( ! empty( $profile['enable_faq_tasks'] ), true ); ?> />
+                            <?php esc_html_e( 'Create FAQ schema tasks when FAQ sections are detected.', 'versa-ai-seo-engine' ); ?>
+                        </label>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row"><label for="versa_ai_faq_min_words"><?php esc_html_e( 'FAQ Minimum Word Count', 'versa-ai-seo-engine' ); ?></label></th>
+                    <td>
+                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[faq_min_word_count]" id="versa_ai_faq_min_words" type="number" min="0" max="5000" value="<?php echo esc_attr( $profile['faq_min_word_count'] ); ?>" />
+                        <p class="description"><?php esc_html_e( 'Only propose FAQ schema on pages with at least this many words. Set 0 to allow all.', 'versa-ai-seo-engine' ); ?></p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row"><label for="versa_ai_faq_post_types"><?php esc_html_e( 'FAQ Eligible Post Types', 'versa-ai-seo-engine' ); ?></label></th>
+                    <td>
+                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[faq_allowed_post_types]" id="versa_ai_faq_post_types" type="text" class="regular-text" value="<?php echo esc_attr( implode( ', ', (array) $profile['faq_allowed_post_types'] ) ); ?>" />
+                        <p class="description"><?php esc_html_e( 'Comma or newline separated list (e.g., page, post, product). FAQ tasks will only run for these types.', 'versa-ai-seo-engine' ); ?></p>
+                    </td>
+                </tr>
             </tbody>
         </table>
 
