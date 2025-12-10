@@ -380,6 +380,7 @@ class Versa_AI_Optimizer {
                 continue;
             }
 
+            $page['post_id']  = $post_id;
             $page['post_slug'] = get_post_field( 'post_name', $post_id );
 
             if ( isset( $page['status'] ) && $page['status'] >= 400 ) {
