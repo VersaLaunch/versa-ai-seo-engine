@@ -26,9 +26,19 @@ class Versa_AI_Tasks_Page {
             return;
         }
 
-        $awaiting = Versa_AI_SEO_Tasks::get_tasks_by_status( 'awaiting_approval', 50 );
-        $awaiting_apply = Versa_AI_SEO_Tasks::get_tasks_by_status( 'awaiting_apply', 50 );
-        $recent   = Versa_AI_SEO_Tasks::get_tasks_by_status( [ 'done', 'failed' ], 20 );
+        // Fetch a larger set so admins can see the full queue; keep a sane cap for performance.
+        $awaiting = Versa_AI_SEO_Tasks::get_tasks_by_status( 'awaiting_approval', 500 );
+        $awaiting_apply = Versa_AI_SEO_Tasks::get_tasks_by_status( 'awaiting_apply', 100 );
+        $recent   = Versa_AI_SEO_Tasks::get_tasks_by_status( [ 'done', 'failed' ], 50 );
+
+        $awaiting_by_type = [];
+        foreach ( $awaiting as $task ) {
+            $type = $task['task_type'] ?? 'other';
+            if ( ! isset( $awaiting_by_type[ $type ] ) ) {
+                $awaiting_by_type[ $type ] = [];
+            }
+            $awaiting_by_type[ $type ][] = $task;
+        }
 
         $cron_actions = [
             'versa_ai_weekly_planner'   => __( 'Run Weekly Planner', 'versa-ai-seo-engine' ),

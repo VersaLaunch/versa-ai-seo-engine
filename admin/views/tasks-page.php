@@ -9,6 +9,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+
+$awaiting_by_type = isset( $awaiting_by_type ) && is_array( $awaiting_by_type ) ? $awaiting_by_type : [];
 ?>
 <div class="wrap">
     <h1><?php esc_html_e( 'Versa AI Tasks', 'versa-ai-seo-engine' ); ?></h1>
@@ -48,7 +50,7 @@ if ( ! defined( 'ABSPATH' ) ) {
             <input type="hidden" name="action" value="versa_ai_bulk_tasks" />
             <?php wp_nonce_field( 'versa_ai_bulk_tasks' ); ?>
 
-            <div style="margin: 0 0 12px;">
+            <div style="margin: 0 0 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <label for="versa_ai_bulk_action" class="screen-reader-text"><?php esc_html_e( 'Bulk action', 'versa-ai-seo-engine' ); ?></label>
                 <select name="bulk_action" id="versa_ai_bulk_action">
                     <option value="">— <?php esc_html_e( 'Bulk actions', 'versa-ai-seo-engine' ); ?> —</option>
@@ -58,84 +60,100 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <button type="submit" class="button action"><?php esc_html_e( 'Apply', 'versa-ai-seo-engine' ); ?></button>
             </div>
 
-            <table class="wp-list-table widefat fixed striped">
-                <thead>
-                    <tr>
-                        <td class="manage-column column-cb check-column"><input type="checkbox" id="versa_ai_tasks_select_all" /></td>
-                        <th><?php esc_html_e( 'ID', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Post', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Type', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Priority', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Details', 'versa-ai-seo-engine' ); ?></th>
-                        <th><?php esc_html_e( 'Actions', 'versa-ai-seo-engine' ); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $awaiting as $task ) :
-                        $approve_url = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_approve_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_action_' . (int) $task['id'] );
-                        $decline_url = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_decline_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_action_' . (int) $task['id'] );
-                        $post_link   = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
-                        $slug        = $task['post_id'] ? get_post_field( 'post_name', (int) $task['post_id'] ) : '';
-                        $payload_decoded = json_decode( $task['payload'] ?? '', true );
+            <?php if ( $awaiting_by_type ) : ?>
+                <div class="versa-ai-task-groups-nav" style="margin:0 0 12px; display:flex; gap:12px; flex-wrap:wrap;">
+                    <?php foreach ( $awaiting_by_type as $type => $tasks ) :
+                        $anchor = 'task-group-' . sanitize_title( $type );
+                        $label  = ucfirst( str_replace( '_', ' ', $type ) );
                         ?>
-                        <tr>
-                            <th scope="row" class="check-column"><input type="checkbox" name="task_ids[]" value="<?php echo esc_attr( $task['id'] ); ?>" /></th>
-                            <td><?php echo esc_html( $task['id'] ); ?></td>
-                            <td>
-                                <?php if ( $task['post_id'] && $post_link ) : ?>
-                                    <a href="<?php echo esc_url( $post_link ); ?>">#<?php echo esc_html( $task['post_id'] ); ?></a><?php if ( $slug ) : ?> (<?php echo esc_html( $slug ); ?>)<?php endif; ?>
-                                <?php else : ?>
-                                    <?php esc_html_e( 'Site-wide', 'versa-ai-seo-engine' ); ?>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo esc_html( ucfirst( str_replace( '_', ' ', $task['task_type'] ) ) ); ?></td>
-                            <td>
-                                <?php $priority = is_array( $payload_decoded ) ? ( $payload_decoded['priority'] ?? '' ) : ''; ?>
-                                <span class="versa-ai-priority versa-ai-priority-<?php echo esc_attr( strtolower( $priority ?: 'medium' ) ); ?>"><?php echo esc_html( $priority ?: __( 'medium', 'versa-ai-seo-engine' ) ); ?></span>
-                            </td>
-                            <td>
-                                <?php if ( is_array( $payload_decoded ) ) : ?>
-                                    <?php if ( ! empty( $payload_decoded['summary'] ) ) : ?>
-                                        <div><strong><?php esc_html_e( 'Summary:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload_decoded['summary'] ); ?></div>
-                                    <?php endif; ?>
-                                    <?php if ( ! empty( $payload_decoded['recommended_action'] ) ) : ?>
-                                        <div><strong><?php esc_html_e( 'Why / Action:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload_decoded['recommended_action'] ); ?></div>
-                                    <?php endif; ?>
-                                    <?php if ( ! empty( $payload_decoded['warnings'] ) && is_array( $payload_decoded['warnings'] ) ) : ?>
-                                        <div><strong><?php esc_html_e( 'Warnings:', 'versa-ai-seo-engine' ); ?></strong>
-                                            <ul style="margin:4px 0 0 18px; list-style:disc;">
-                                                <?php foreach ( $payload_decoded['warnings'] as $warn ) : ?>
-                                                    <li><?php echo esc_html( $warn ); ?></li>
-                                                <?php endforeach; ?>
-                                            </ul>
-                                        </div>
-                                    <?php endif; ?>
-                                    <details style="margin-top:6px;">
-                                        <summary><?php esc_html_e( 'Raw payload', 'versa-ai-seo-engine' ); ?></summary>
-                                        <code style="white-space:pre-wrap; display:block; margin-top:4px;"><?php echo esc_html( $task['payload'] ); ?></code>
-                                    </details>
-                                <?php else : ?>
-                                    <code style="white-space:pre-wrap; display:block; margin-top:4px;"><?php echo esc_html( $task['payload'] ); ?></code>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <a class="button button-primary" href="<?php echo esc_url( $approve_url ); ?>"><?php esc_html_e( 'Approve', 'versa-ai-seo-engine' ); ?></a>
-                                <a class="button" href="<?php echo esc_url( $decline_url ); ?>"><?php esc_html_e( 'Decline', 'versa-ai-seo-engine' ); ?></a>
-                            </td>
-                        </tr>
+                        <a href="#<?php echo esc_attr( $anchor ); ?>" class="button button-secondary">
+                            <?php echo esc_html( $label ); ?> (<?php echo count( $tasks ); ?>)
+                        </a>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
-            <script>
-                ( function () {
-                    const toggle = document.getElementById('versa_ai_tasks_select_all');
-                    if (!toggle) return;
-                    toggle.addEventListener('change', function () {
-                        const checkboxes = document.querySelectorAll('input[name="task_ids[]"]');
-                        checkboxes.forEach(cb => cb.checked = toggle.checked);
-                    });
-                } )();
-            </script>
+                </div>
+            <?php endif; ?>
+
+            <?php foreach ( $awaiting_by_type as $type => $tasks ) :
+                $anchor = 'task-group-' . sanitize_title( $type );
+                $label  = ucfirst( str_replace( '_', ' ', $type ) );
+                ?>
+                <div id="<?php echo esc_attr( $anchor ); ?>" class="versa-ai-task-group" style="margin-bottom:24px;">
+                    <h3 style="margin:8px 0 6px; display:flex; align-items:center; gap:8px;">
+                        <span><?php echo esc_html( $label ); ?></span>
+                        <span class="versa-ai-badge"><?php echo count( $tasks ); ?></span>
+                    </h3>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <td class="manage-column column-cb check-column"><input type="checkbox" class="versa_ai_tasks_select_group" /></td>
+                                <th><?php esc_html_e( 'ID', 'versa-ai-seo-engine' ); ?></th>
+                                <th><?php esc_html_e( 'Post', 'versa-ai-seo-engine' ); ?></th>
+                                <th><?php esc_html_e( 'Priority', 'versa-ai-seo-engine' ); ?></th>
+                                <th><?php esc_html_e( 'Details', 'versa-ai-seo-engine' ); ?></th>
+                                <th><?php esc_html_e( 'Actions', 'versa-ai-seo-engine' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $tasks as $task ) :
+                                $approve_url = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_approve_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_action_' . (int) $task['id'] );
+                                $decline_url = wp_nonce_url( admin_url( 'admin-post.php?action=versa_ai_decline_task&task_id=' . (int) $task['id'] ), 'versa_ai_task_action_' . (int) $task['id'] );
+                                $post_link   = $task['post_id'] ? get_edit_post_link( (int) $task['post_id'] ) : '';
+                                $slug        = $task['post_id'] ? get_post_field( 'post_name', (int) $task['post_id'] ) : '';
+                                $payload_decoded = json_decode( $task['payload'] ?? '', true );
+                                $priority = is_array( $payload_decoded ) ? ( $payload_decoded['priority'] ?? '' ) : '';
+                                ?>
+                                <tr>
+                                    <th scope="row" class="check-column"><input type="checkbox" name="task_ids[]" value="<?php echo esc_attr( $task['id'] ); ?>" /></th>
+                                    <td><?php echo esc_html( $task['id'] ); ?></td>
+                                    <td>
+                                        <?php if ( $task['post_id'] && $post_link ) : ?>
+                                            <a href="<?php echo esc_url( $post_link ); ?>">#<?php echo esc_html( $task['post_id'] ); ?></a><?php if ( $slug ) : ?> (<?php echo esc_html( $slug ); ?>)<?php endif; ?>
+                                        <?php else : ?>
+                                            <?php esc_html_e( 'Site-wide', 'versa-ai-seo-engine' ); ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="versa-ai-priority versa-ai-priority-<?php echo esc_attr( strtolower( $priority ?: 'medium' ) ); ?>"><?php echo esc_html( $priority ?: __( 'medium', 'versa-ai-seo-engine' ) ); ?></span>
+                                    </td>
+                                    <td>
+                                        <?php if ( is_array( $payload_decoded ) ) : ?>
+                                            <?php if ( ! empty( $payload_decoded['summary'] ) ) : ?>
+                                                <div><strong><?php esc_html_e( 'Summary:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload_decoded['summary'] ); ?></div>
+                                            <?php endif; ?>
+                                            <?php if ( ! empty( $payload_decoded['recommended_action'] ) ) : ?>
+                                                <div><strong><?php esc_html_e( 'Why / Action:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload_decoded['recommended_action'] ); ?></div>
+                                            <?php endif; ?>
+                                            <?php if ( ! empty( $payload_decoded['warnings'] ) && is_array( $payload_decoded['warnings'] ) ) : ?>
+                                                <div><strong><?php esc_html_e( 'Warnings:', 'versa-ai-seo-engine' ); ?></strong>
+                                                    <ul style="margin:4px 0 0 18px; list-style:disc;">
+                                                        <?php foreach ( $payload_decoded['warnings'] as $warn ) : ?>
+                                                            <li><?php echo esc_html( $warn ); ?></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                </div>
+                                            <?php endif; ?>
+                                            <details style="margin-top:6px;">
+                                                <summary><?php esc_html_e( 'Raw payload', 'versa-ai-seo-engine' ); ?></summary>
+                                                <code style="white-space:pre-wrap; display:block; margin-top:4px;"><?php echo esc_html( $task['payload'] ); ?></code>
+                                            </details>
+                                        <?php else : ?>
+                                            <code style="white-space:pre-wrap; display:block; margin-top:4px;"><?php echo esc_html( $task['payload'] ); ?></code>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <a class="button button-primary" href="<?php echo esc_url( $approve_url ); ?>"><?php esc_html_e( 'Approve', 'versa-ai-seo-engine' ); ?></a>
+                                        <a class="button" href="<?php echo esc_url( $decline_url ); ?>"><?php esc_html_e( 'Decline', 'versa-ai-seo-engine' ); ?></a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach; ?>
+
+            <?php if ( count( $awaiting ) > 400 ) : ?>
+                <p style="color:#9c6b00; margin-top:8px;"><?php esc_html_e( 'Showing up to 500 awaiting-approval tasks. Consider approving or declining to reduce the queue.', 'versa-ai-seo-engine' ); ?></p>
+            <?php endif; ?>
         </form>
     <?php endif; ?>
     </div>
@@ -291,6 +309,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 .versa-ai-status-awaiting_apply { background:#fff4d8; color:#9c6b00; }
 .versa-ai-status-awaiting_approval { background:#fff4d8; color:#9c6b00; }
 .versa-ai-status-pending { background:#f0f0f1; color:#444; }
+.versa-ai-badge { display:inline-block; padding:2px 8px; border-radius:12px; background:#f0f0f1; color:#444; font-size:11px; }
 </style>
 
 <script>
@@ -313,6 +332,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 
     buttons.forEach( ( btn ) => {
         btn.addEventListener( 'click', () => showPanel( btn.dataset.target ) );
+    } );
+
+    // Per-group select-all checkboxes
+    document.querySelectorAll( '.versa_ai_tasks_select_group' ).forEach( ( toggle ) => {
+        toggle.addEventListener( 'change', () => {
+            const table = toggle.closest( 'table' );
+            if ( ! table ) return;
+            table.querySelectorAll( 'tbody input[name="task_ids[]"]' ).forEach( ( cb ) => {
+                cb.checked = toggle.checked;
+            } );
+        } );
     } );
 
     const filterRows = () => {
