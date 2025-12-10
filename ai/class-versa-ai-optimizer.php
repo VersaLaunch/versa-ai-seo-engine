@@ -216,6 +216,7 @@ class Versa_AI_Optimizer {
             }
 
             $page['post_id'] = $post_id;
+            $page['post_slug'] = get_post_field( 'post_name', $post_id );
 
             if ( ! $page['has_title'] ) {
                 $issues[] = array_merge( $page, [
@@ -258,6 +259,7 @@ class Versa_AI_Optimizer {
             // Store actionable payload including post_id and URL.
             $payload = [
                 'post_id'            => $issue['post_id'],
+                'post_slug'          => $issue['post_slug'] ?? '',
                 'url'                => $issue['url'],
                 'issue'              => $issue['issue'],
                 'summary'            => $issue['summary'],

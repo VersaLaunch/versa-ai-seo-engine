@@ -153,6 +153,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                                     <div><strong><?php esc_html_e( 'Summary:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['summary'] ?? '' ); ?></div>
                                     <div><strong><?php esc_html_e( 'Recommended:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['recommended_action'] ?? '' ); ?></div>
                                     <div><strong><?php esc_html_e( 'URL:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['url'] ?? '' ); ?></div>
+                                    <div><strong><?php esc_html_e( 'Post:', 'versa-ai-seo-engine' ); ?></strong> #<?php echo esc_html( $task['post_id'] ); ?><?php if ( ! empty( $payload['post_slug'] ) ) : ?> (<?php echo esc_html( $payload['post_slug'] ); ?>)<?php endif; ?></div>
                                     <div><strong><?php esc_html_e( 'Words:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['word_count'] ?? '' ); ?></div>
                                 <?php else : ?>
                                     <code style="white-space:pre-wrap;"><?php echo esc_html( $task['result'] ); ?></code>
