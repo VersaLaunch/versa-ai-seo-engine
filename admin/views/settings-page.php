@@ -130,6 +130,22 @@ if ( ! defined( 'ABSPATH' ) ) {
                         <p class="description"><?php esc_html_e( 'Example: gpt-4.1-mini. Ensure the model is available to your API key.', 'versa-ai-seo-engine' ); ?></p>
                     </td>
                 </tr>
+
+                <tr>
+                    <th scope="row"><label for="versa_ai_crawl_limit"><?php esc_html_e( 'Site Crawl Limit', 'versa-ai-seo-engine' ); ?></label></th>
+                    <td>
+                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[crawl_limit]" id="versa_ai_crawl_limit" type="number" min="0" value="<?php echo esc_attr( $profile['crawl_limit'] ); ?>" />
+                        <p class="description"><?php esc_html_e( 'Maximum pages per site crawl. Set 0 for no limit (may be heavy on large sites).', 'versa-ai-seo-engine' ); ?></p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row"><label for="versa_ai_crawl_cooldown"><?php esc_html_e( 'Crawl Cooldown (hours)', 'versa-ai-seo-engine' ); ?></label></th>
+                    <td>
+                        <input name="<?php echo esc_attr( Versa_AI_Settings_Page::OPTION_KEY ); ?>[crawl_cooldown_hours]" id="versa_ai_crawl_cooldown" type="number" min="1" max="24" value="<?php echo esc_attr( $profile['crawl_cooldown_hours'] ); ?>" />
+                        <p class="description"><?php esc_html_e( 'Minimum hours between crawls. Lower values re-crawl more often; higher reduces load.', 'versa-ai-seo-engine' ); ?></p>
+                    </td>
+                </tr>
             </tbody>
         </table>
 

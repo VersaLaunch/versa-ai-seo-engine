@@ -173,6 +173,12 @@ if ( ! defined( 'ABSPATH' ) ) {
                                 <div><strong><?php esc_html_e( 'URL:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['url'] ?? '' ); ?></div>
                                 <div><strong><?php esc_html_e( 'Post:', 'versa-ai-seo-engine' ); ?></strong> #<?php echo esc_html( $task['post_id'] ); ?><?php if ( ! empty( $payload['post_slug'] ) ) : ?> (<?php echo esc_html( $payload['post_slug'] ); ?>)<?php endif; ?></div>
                                 <div><strong><?php esc_html_e( 'Words:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['word_count'] ?? '' ); ?></div>
+                                <?php if ( isset( $payload['status'] ) ) : ?><div><strong><?php esc_html_e( 'HTTP:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['status'] ); ?></div><?php endif; ?>
+                                <?php if ( ! empty( $payload['canonical'] ) ) : ?><div><strong><?php esc_html_e( 'Canonical:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['canonical'] ); ?></div><?php endif; ?>
+                                <?php if ( isset( $payload['meta_robots'] ) ) : ?><div><strong><?php esc_html_e( 'Robots:', 'versa-ai-seo-engine' ); ?></strong> <?php echo esc_html( $payload['meta_robots'] ); ?></div><?php endif; ?>
+                                <?php if ( isset( $payload['has_h1'] ) ) : ?><div><strong><?php esc_html_e( 'H1 Present:', 'versa-ai-seo-engine' ); ?></strong> <?php echo $payload['has_h1'] ? esc_html__( 'Yes', 'versa-ai-seo-engine' ) : esc_html__( 'No', 'versa-ai-seo-engine' ); ?></div><?php endif; ?>
+                                <?php if ( isset( $payload['status'] ) && (int) $payload['status'] >= 400 ) : ?><div style="color:#b32d2e;"><strong><?php esc_html_e( 'Warning:', 'versa-ai-seo-engine' ); ?></strong> <?php esc_html_e( 'Page returns an error response.', 'versa-ai-seo-engine' ); ?></div><?php endif; ?>
+                                <?php if ( isset( $payload['noindex'] ) && $payload['noindex'] ) : ?><div style="color:#b32d2e;"><strong><?php esc_html_e( 'Warning:', 'versa-ai-seo-engine' ); ?></strong> <?php esc_html_e( 'Page is blocked by noindex.', 'versa-ai-seo-engine' ); ?></div><?php endif; ?>
                             <?php else : ?>
                                 <code style="white-space:pre-wrap;"><?php echo esc_html( $task['result'] ); ?></code>
                             <?php endif; ?>

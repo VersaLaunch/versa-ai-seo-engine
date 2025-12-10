@@ -68,6 +68,8 @@ class Versa_AI_Settings_Page {
             'require_apply_after_edits' => false,
             'openai_api_key'        => '',
             'openai_model'          => 'gpt-4.1-mini',
+            'crawl_limit'           => 120,
+            'crawl_cooldown_hours'  => 4,
         );
 
         $stored = get_option( self::OPTION_KEY, array() );
@@ -98,6 +100,14 @@ class Versa_AI_Settings_Page {
         $max_words = isset( $input['max_words_per_post'] ) ? (int) $input['max_words_per_post'] : 1300;
         $max_words = max( 300, min( 5000, $max_words ) );
 
+        $crawl_limit = isset( $input['crawl_limit'] ) ? (int) $input['crawl_limit'] : 120;
+        if ( $crawl_limit < 0 ) {
+            $crawl_limit = 0; // 0 means unlimited crawl.
+        }
+
+        $crawl_cooldown_hours = isset( $input['crawl_cooldown_hours'] ) ? (int) $input['crawl_cooldown_hours'] : 4;
+        $crawl_cooldown_hours = max( 1, min( 24, $crawl_cooldown_hours ) );
+
         $new_api_key = isset( $input['openai_api_key'] ) ? trim( $input['openai_api_key'] ) : '';
         if ( '' === $new_api_key && isset( $stored_option['openai_api_key'] ) ) {
             $new_api_key = $stored_option['openai_api_key']; // keep existing if left blank.
@@ -117,6 +127,8 @@ class Versa_AI_Settings_Page {
             'require_apply_after_edits' => ! empty( $input['require_apply_after_edits'] ),
             'openai_api_key'        => sanitize_text_field( $new_api_key ),
             'openai_model'          => sanitize_text_field( isset( $input['openai_model'] ) ? $input['openai_model'] : 'gpt-4.1-mini' ),
+            'crawl_limit'           => $crawl_limit,
+            'crawl_cooldown_hours'  => $crawl_cooldown_hours,
         );
     }
 

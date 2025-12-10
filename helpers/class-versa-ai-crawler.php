@@ -13,7 +13,7 @@ class Versa_AI_Crawler {
     /**
      * Crawl internal links starting from sitemap/home and return page signals.
      *
-     * @param int $limit Maximum pages to crawl.
+    * @param int $limit Maximum pages to crawl (0 = unlimited).
      * @return array<int,array{url:string,title:string,has_title:bool,has_meta_description:bool,word_count:int,status:int,canonical:string,noindex:bool,has_h1:bool,meta_robots:string}>
      */
     public function crawl( int $limit = 120 ): array {
@@ -21,6 +21,10 @@ class Versa_AI_Crawler {
         $host = wp_parse_url( $home, PHP_URL_HOST );
         if ( ! $host ) {
             return [];
+        }
+
+        if ( $limit <= 0 ) {
+            $limit = PHP_INT_MAX; // Effectively unlimited, bounded by queue exhaustion.
         }
 
         $queue   = $this->seed_queue( $home, $host, $limit );

@@ -196,13 +196,21 @@ class Versa_AI_Optimizer {
      * Crawl the site and draft site-wide SEO recommendations as tasks.
      */
     private function maybe_crawl_site_for_recommendations(): void {
-        // Limit crawl frequency (every 4 hours).
+        $profile = $this->get_profile();
+
+        $crawl_cooldown_hours = isset( $profile['crawl_cooldown_hours'] ) ? (int) $profile['crawl_cooldown_hours'] : 4;
+        if ( $crawl_cooldown_hours < 1 ) {
+            $crawl_cooldown_hours = 1;
+        }
+
+        // Limit crawl frequency based on configured cooldown.
         $transient_key = 'versa_ai_site_crawl_ran';
         if ( get_transient( $transient_key ) ) {
             return;
         }
 
-        $pages = $this->crawler->crawl( 120 );
+        $crawl_limit = isset( $profile['crawl_limit'] ) ? (int) $profile['crawl_limit'] : 120;
+        $pages       = $this->crawler->crawl( $crawl_limit );
         if ( empty( $pages ) ) {
             return;
         }
@@ -288,7 +296,6 @@ class Versa_AI_Optimizer {
             return;
         }
 
-        $profile = $this->get_profile();
         $require_approval = (bool) ( $profile['require_task_approval'] ?? false );
         $initial_status   = $require_approval ? 'awaiting_approval' : 'pending';
 
@@ -306,12 +313,14 @@ class Versa_AI_Optimizer {
                 'status'             => $issue['status'] ?? 200,
                 'canonical'          => $issue['canonical'] ?? '',
                 'meta_robots'        => $issue['meta_robots'] ?? '',
+                'has_h1'             => isset( $issue['has_h1'] ) ? (bool) $issue['has_h1'] : null,
+                'noindex'            => isset( $issue['noindex'] ) ? (bool) $issue['noindex'] : null,
             ];
 
             Versa_AI_SEO_Tasks::insert_task( $issue['post_id'], 'site_audit', $payload, $initial_status );
         }
 
-        set_transient( $transient_key, 1, 4 * HOUR_IN_SECONDS );
+        set_transient( $transient_key, 1, $crawl_cooldown_hours * HOUR_IN_SECONDS );
     }
 
     /**
@@ -672,6 +681,8 @@ class Versa_AI_Optimizer {
             'require_apply_after_edits' => false,
             'openai_api_key'      => '',
             'openai_model'        => 'gpt-4.1-mini',
+            'crawl_limit'         => 120,
+            'crawl_cooldown_hours'=> 4,
         ];
 
         $stored = get_option( Versa_AI_Settings_Page::OPTION_KEY, [] );
